@@ -36,7 +36,7 @@ Abaixo está o modelo entidade-relacionamento da aplicação:
 
 ![MER](./assets/Diagrama%20sem%20App%20Agenda.png)
 
-> 📌 Substitua o caminho acima pelo local correto da imagem no seu repositório.
+
 
 ---
 
