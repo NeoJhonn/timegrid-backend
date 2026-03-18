@@ -86,3 +86,6 @@ Um usuário só pode agendar horários para seus próprios clientes.
 ---
 
 ## 🏗️ Estrutura do Projeto
+
+
+
