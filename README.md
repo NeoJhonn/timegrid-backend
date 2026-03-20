@@ -8,7 +8,7 @@ O projeto simula um sistema de agenda onde usuários podem cadastrar clientes e 
 
 ## 🚀 Tecnologias utilizadas
 
-- Java 17+
+- Java 21
 - Spring Boot
 - Spring Data JPA
 - Spring Security
