@@ -8,7 +8,7 @@ O projeto simula um sistema de agenda onde usuários podem cadastrar clientes e 
 
 ## 🚀 Tecnologias utilizadas
 
-- Java 17+
+- Java 21
 - Spring Boot
 - Spring Data JPA
 - Spring Security
@@ -35,6 +35,7 @@ Este projeto foi criado com foco em aprendizado prático, abordando:
 Abaixo está o modelo entidade-relacionamento da aplicação:
 
 ![MER](./assets/Diagrama%20sem%20App%20Agenda.png)
+
 
 
 ---
