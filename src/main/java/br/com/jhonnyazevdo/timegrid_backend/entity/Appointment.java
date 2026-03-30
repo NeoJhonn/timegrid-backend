@@ -41,7 +41,7 @@ public class Appointment {
     private String service;
 
     @Column(nullable = false)
-    private LocalDate appointmenteDate;
+    private LocalDate appointmentDate;
 
     @Enumerated(EnumType.STRING)
     private TimeGrid startTime;
