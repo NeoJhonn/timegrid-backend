@@ -43,10 +43,10 @@ public class Appointment {
     @Column(nullable = false)
     private LocalDate appointmenteDate;
 
-    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private TimeGrid startTime;
 
-    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private TimeGrid endTime;
 
     @CreationTimestamp
