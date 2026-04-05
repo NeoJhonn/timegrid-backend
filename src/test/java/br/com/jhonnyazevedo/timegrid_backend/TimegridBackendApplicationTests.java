@@ -1,4 +1,4 @@
-package br.com.jhonnyazevdo.timegrid_backend;
+package br.com.jhonnyazevedo.timegrid_backend;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

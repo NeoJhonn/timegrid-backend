@@ -1,4 +1,4 @@
-package br.com.jhonnyazevdo.timegrid_backend;
+package br.com.jhonnyazevedo.timegrid_backend;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

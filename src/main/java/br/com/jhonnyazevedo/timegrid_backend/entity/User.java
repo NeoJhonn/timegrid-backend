@@ -1,6 +1,6 @@
-package br.com.jhonnyazevdo.timegrid_backend.entity;
+package br.com.jhonnyazevedo.timegrid_backend.entity;
 
-import br.com.jhonnyazevdo.timegrid_backend.enums.UserRole;
+import br.com.jhonnyazevedo.timegrid_backend.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -34,6 +34,7 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;
 
@@ -41,10 +42,11 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Appointment> appointments = new ArrayList<>();
 
-    // Relacionamento: 1 user vai ter vários appointments
+    // Relacionamento: 1 user vai ter vários clients
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Client> clients = new ArrayList<>();
 
+    @Column(nullable = false)
     private Boolean active;
 
     @CreationTimestamp

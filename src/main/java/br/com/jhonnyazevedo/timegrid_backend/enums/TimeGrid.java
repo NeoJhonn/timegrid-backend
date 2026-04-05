@@ -1,4 +1,4 @@
-package br.com.jhonnyazevdo.timegrid_backend.enums;
+package br.com.jhonnyazevedo.timegrid_backend.enums;
 
 public enum TimeGrid {
 

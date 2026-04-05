@@ -1,4 +1,4 @@
-package br.com.jhonnyazevdo.timegrid_backend.entity;
+package br.com.jhonnyazevedo.timegrid_backend.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
