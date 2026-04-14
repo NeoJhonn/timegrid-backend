@@ -1,7 +1,7 @@
-package br.com.jhonnyazevedo.timegrid_backend.repository;
+package br.com.jhonnyazevedo.timegrid_backend.client.repository;
 
-import br.com.jhonnyazevedo.timegrid_backend.entity.Client;
-import br.com.jhonnyazevedo.timegrid_backend.entity.User;
+import br.com.jhonnyazevedo.timegrid_backend.client.entity.Client;
+import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

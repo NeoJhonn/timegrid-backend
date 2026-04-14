@@ -1,5 +1,7 @@
-package br.com.jhonnyazevedo.timegrid_backend.entity;
+package br.com.jhonnyazevedo.timegrid_backend.user.entity;
 
+import br.com.jhonnyazevedo.timegrid_backend.appointment.entity.Appointment;
+import br.com.jhonnyazevedo.timegrid_backend.client.entity.Client;
 import br.com.jhonnyazevedo.timegrid_backend.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

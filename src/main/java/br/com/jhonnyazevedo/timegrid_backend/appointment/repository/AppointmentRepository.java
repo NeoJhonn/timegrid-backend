@@ -1,9 +1,11 @@
-package br.com.jhonnyazevedo.timegrid_backend.repository;
+package br.com.jhonnyazevedo.timegrid_backend.appointment.repository;
 
-import br.com.jhonnyazevedo.timegrid_backend.entity.Appointment;
-import br.com.jhonnyazevedo.timegrid_backend.entity.User;
+import br.com.jhonnyazevedo.timegrid_backend.appointment.entity.Appointment;
+import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import br.com.jhonnyazevedo.timegrid_backend.enums.TimeGrid;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -38,5 +40,22 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
      */
     boolean existsByUserAndAppointmentDateAndStartTime(
             User user, LocalDate appointmentDate, TimeGrid startTime
+    );
+
+    /**
+     * Verifica se há conflito de intervalos
+     */
+    @Query("""
+    SELECT COUNT(a) > 0 FROM Appointment a
+    WHERE a.user = :user
+    AND a.appointmentDate = :date
+    AND a.startTime < :endTime
+    AND a.endTime > :startTime
+""")
+    boolean existsConflict(
+            @Param("user") User user,
+            @Param("date") LocalDate date,
+            @Param("startTime") TimeGrid startTime,
+            @Param("endTime") TimeGrid endTime
     );
 }
