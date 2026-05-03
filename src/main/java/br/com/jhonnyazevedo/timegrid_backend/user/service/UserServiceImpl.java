@@ -1,5 +1,6 @@
 package br.com.jhonnyazevedo.timegrid_backend.user.service;
 
+import br.com.jhonnyazevedo.timegrid_backend.exception.BusinessException;
 import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import br.com.jhonnyazevedo.timegrid_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,11 +19,11 @@ public class UserServiceImpl implements UserService {
     public User createUser(User user) {
 
         if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("Email já cadastrado.");
+            throw new BusinessException("Email já cadastrado.");
         }
 
         if (userRepository.existsByUsername(user.getUsername())) {
-            throw new RuntimeException("Username já cadastrado.");
+            throw new BusinessException("Username já cadastrado.");
         }
 
         user.setActive(true);
@@ -33,7 +34,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public User findById(UUID id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+                .orElseThrow(() -> new BusinessException("Usuário não encontrado."));
     }
 
     @Override

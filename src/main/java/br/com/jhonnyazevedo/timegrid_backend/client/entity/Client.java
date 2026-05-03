@@ -14,10 +14,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-@Getter
-@Setter
+
 @AllArgsConstructor
 @NoArgsConstructor
+@Getter
+@Setter
 @Entity
 @Table(name = "clients")
 public class Client {

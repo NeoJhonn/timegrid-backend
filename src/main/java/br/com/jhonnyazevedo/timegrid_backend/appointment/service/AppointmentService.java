@@ -1,7 +1,6 @@
 package br.com.jhonnyazevedo.timegrid_backend.appointment.service;
 
 import br.com.jhonnyazevedo.timegrid_backend.appointment.entity.Appointment;
-import br.com.jhonnyazevedo.timegrid_backend.enums.TimeGrid;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -11,11 +10,9 @@ public interface AppointmentService {
 
     Appointment createAppointment(UUID userId, UUID clientId, Appointment appointment);
 
-    List<Appointment> listByUser(UUID userId);
+    Appointment updateAppointment(UUID userId, Appointment appointment);
 
-    List<Appointment> listByDate(UUID userId, LocalDate date);
+    List<Appointment> listAppointmentsByDate(UUID userId, LocalDate date);
 
     void deleteAppointment(UUID id);
-
-    boolean isTimeAvailable(UUID userId, LocalDate date, TimeGrid startTime);
 }

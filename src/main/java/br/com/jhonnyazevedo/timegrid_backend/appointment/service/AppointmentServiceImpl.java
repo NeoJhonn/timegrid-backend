@@ -4,7 +4,7 @@ import br.com.jhonnyazevedo.timegrid_backend.appointment.entity.Appointment;
 import br.com.jhonnyazevedo.timegrid_backend.appointment.repository.AppointmentRepository;
 import br.com.jhonnyazevedo.timegrid_backend.client.entity.Client;
 import br.com.jhonnyazevedo.timegrid_backend.client.repository.ClientRepository;
-import br.com.jhonnyazevedo.timegrid_backend.enums.TimeGrid;
+import br.com.jhonnyazevedo.timegrid_backend.exception.BusinessException;
 import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import br.com.jhonnyazevedo.timegrid_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,103 +23,109 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final UserRepository userRepository;
     private final ClientRepository clientRepository;
 
+
     @Transactional
     @Override
     public Appointment createAppointment(UUID userId, UUID clientId, Appointment appointment) {
 
-        // 🚨 Validação básica
-        if (appointment.getStartTime() == null || appointment.getEndTime() == null || appointment.getAppointmentDate() == null) {
-            throw new RuntimeException("Dados de agendamento inválidos.");
+        // Validação Básica
+        if (appointment.getStartTime() == null || appointment.getEndTime() == null
+                || appointment.getAppointmentDate() == null) {
+            throw new BusinessException("Dados inválidos para agendamento");
         }
 
-        // ⏱ Regra de horário
-        if (appointment.getStartTime().ordinal() >= appointment.getEndTime().ordinal()) {
-            throw new RuntimeException("Horário inicial deve ser menor que o final.");
+        // Regra de horário
+        if (appointment.getStartTime().ordinal() > appointment.getEndTime().ordinal()) {
+            throw new BusinessException("Horário de início não pode ser maior que horário final");
         }
 
-        // 📅 Data passada
+        // Data passada
         if (appointment.getAppointmentDate().isBefore(LocalDate.now())) {
-            throw new RuntimeException("Não é possível agendar para datas passadas.");
+            throw new BusinessException("Não é possível agendar em datas passadas");
         }
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+                .orElseThrow(() -> new BusinessException("Usuário não encontrado"));
 
         Client client = clientRepository.findById(clientId)
-                .orElseThrow(() -> new RuntimeException("Cliente não encontrado."));
+                .orElseThrow(() -> new BusinessException("Cliente não encontrado"));
 
-        // 🔒 Segurança
+        // Segurança
         if (client.getUser() == null || !client.getUser().getId().equals(user.getId())) {
-            throw new RuntimeException("Cliente não pertence ao usuário.");
+            throw new BusinessException("Cliente não pertence ao usuário logado");
         }
 
-        // 🚫 Conflito direto no banco (PERFEITO)
+        // Clonflito de Intervalo de horário
         boolean conflict = appointmentRepository.existsConflict(
                 user,
                 appointment.getAppointmentDate(),
                 appointment.getStartTime(),
-                appointment.getEndTime()
+                appointment.getEndTime(),
+                null
         );
 
+
         if (conflict) {
-            throw new RuntimeException("Horário já está ocupado (conflito de intervalo).");
+            throw new BusinessException("Já existe um agendamento neste intervalo de horário");
         }
 
-        appointment.setUser(user);
         appointment.setClient(client);
+        appointment.setUser(user);
 
         return appointmentRepository.save(appointment);
     }
 
     @Override
-    public List<Appointment> listByUser(UUID userId) {
+    public Appointment updateAppointment(UUID userId, Appointment appointment) {
+        Appointment existAppointment = appointmentRepository.findById(appointment.getId())
+                .orElseThrow(() -> new BusinessException("Agendamento não encontrado"));
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+        // Segurança
+        if (!existAppointment.getUser().getId().equals(userId)) {
+            throw new BusinessException("Agendamento não pertence ao usuário");
+        }
 
-        return appointmentRepository.findByUser(user);
+        // Validação de Horário
+        if (existAppointment.getStartTime().ordinal() > existAppointment.getEndTime().ordinal()) {
+            throw new BusinessException("Horário de início não pode ser maior que horário final");
+        }
+
+        // Clonflito de Intervalo de horário
+        boolean conflict = appointmentRepository.existsConflict(
+                existAppointment.getUser(),
+                existAppointment.getAppointmentDate(),
+                existAppointment.getStartTime(),
+                existAppointment.getEndTime(),
+                existAppointment.getId()
+        );
+
+
+        if (conflict) {
+            throw new BusinessException("Já existe um agendamento neste intervalo de horário");
+        }
+
+        // Atualiza o agendamento com os novos dados
+        existAppointment.setEndTime(appointment.getEndTime());
+        existAppointment.setService(appointment.getService());
+
+
+        return appointmentRepository.save(existAppointment);
     }
 
     @Override
-    public List<Appointment> listByDate(UUID userId, LocalDate date) {
-
+    public List<Appointment> listAppointmentsByDate(UUID userId, LocalDate date) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+                .orElseThrow(() -> new BusinessException("Usuário não encontrado"));
 
         return appointmentRepository.findByUserAndAppointmentDate(user, date);
     }
 
+
     @Override
     public void deleteAppointment(UUID id) {
+        appointmentRepository.findById(id).orElseThrow(() ->
+                new BusinessException("Agendamento não encontrado"));
+
         appointmentRepository.deleteById(id);
-    }
-
-    @Override
-    public boolean isTimeAvailable(UUID userId, LocalDate date, TimeGrid startTime) {
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
-
-        return !appointmentRepository.existsByUserAndAppointmentDateAndStartTime(
-                user, date, startTime
-        );
-    }
-
-    private void validateTimeConflict(User user, Appointment newAppointment) {
-
-        List<Appointment> appointments = appointmentRepository
-                .findByUserAndAppointmentDate(user, newAppointment.getAppointmentDate());
-
-        for (Appointment existing : appointments) {
-
-            boolean overlap =
-                    newAppointment.getStartTime().ordinal() < existing.getEndTime().ordinal()
-                            &&
-                            newAppointment.getEndTime().ordinal() > existing.getStartTime().ordinal();
-
-            if (overlap) {
-                throw new RuntimeException("Horário já está ocupado (conflito de intervalo).");
-            }
-        }
     }
 }

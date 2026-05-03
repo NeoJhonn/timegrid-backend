@@ -2,6 +2,7 @@ package br.com.jhonnyazevedo.timegrid_backend.client.service;
 
 import br.com.jhonnyazevedo.timegrid_backend.client.entity.Client;
 import br.com.jhonnyazevedo.timegrid_backend.client.repository.ClientRepository;
+import br.com.jhonnyazevedo.timegrid_backend.exception.BusinessException;
 import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import br.com.jhonnyazevedo.timegrid_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,10 +23,10 @@ public class ClientServiceImpl implements ClientService {
     public Client createClient(UUID userId, Client client) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+                .orElseThrow(() -> new BusinessException("Usuário não encontrado."));
 
         if (clientRepository.existsByUserAndPhone(user, client.getPhone())) {
-            throw new RuntimeException("Cliente já cadastrado com esse telefone.");
+            throw new BusinessException("Cliente já cadastrado com esse telefone.");
         }
 
         client.setUser(user);
@@ -37,7 +38,7 @@ public class ClientServiceImpl implements ClientService {
     public List<Client> listByUser(UUID userId) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+                .orElseThrow(() -> new BusinessException("Usuário não encontrado."));
 
         return clientRepository.findByUser(user);
     }
@@ -45,7 +46,7 @@ public class ClientServiceImpl implements ClientService {
     @Override
     public Client findById(UUID id) {
         return clientRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Cliente não encontrado."));
+                .orElseThrow(() -> new BusinessException("Cliente não encontrado."));
     }
 
     @Override
