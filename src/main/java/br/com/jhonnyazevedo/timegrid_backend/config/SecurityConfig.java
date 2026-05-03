@@ -1,4 +1,4 @@
-package br.com.jhonnyazevdo.timegrid_backend.config;
+package br.com.jhonnyazevedo.timegrid_backend.config;
 
 
 import org.springframework.context.annotation.Bean;

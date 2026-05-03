@@ -1,5 +1,7 @@
-package br.com.jhonnyazevdo.timegrid_backend.entity;
+package br.com.jhonnyazevedo.timegrid_backend.client.entity;
 
+import br.com.jhonnyazevedo.timegrid_backend.appointment.entity.Appointment;
+import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,10 +14,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-@Getter
-@Setter
+
 @AllArgsConstructor
 @NoArgsConstructor
+@Getter
+@Setter
 @Entity
 @Table(name = "clients")
 public class Client {

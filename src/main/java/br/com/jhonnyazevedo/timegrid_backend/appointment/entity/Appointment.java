@@ -1,7 +1,9 @@
-package br.com.jhonnyazevdo.timegrid_backend.entity;
+package br.com.jhonnyazevedo.timegrid_backend.appointment.entity;
 
 
-import br.com.jhonnyazevdo.timegrid_backend.enums.TimeGrid;
+import br.com.jhonnyazevedo.timegrid_backend.client.entity.Client;
+import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
+import br.com.jhonnyazevedo.timegrid_backend.enums.TimeGrid;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -18,7 +20,11 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "appointment")
+@Table(name = "appointments",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"user_id", "appointmentDate", "startTime"})
+        }
+)
 public class Appointment {
 
     @Id
@@ -44,9 +50,11 @@ public class Appointment {
     private LocalDate appointmentDate;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private TimeGrid startTime;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private TimeGrid endTime;
 
     @CreationTimestamp
