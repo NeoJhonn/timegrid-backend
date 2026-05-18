@@ -2,9 +2,13 @@
 
 ## Project: TimeGrid Backend
 
-Backend de um sistema de agendamento desenvolvido em Java com Spring Boot. O projeto tem foco educativo e está evoluindo em camadas: entidades, repositories, services, regras de negócio, depois controllers/DTOs/autenticação.
+Backend de um sistema de agendamento desenvolvido em Java com Spring Boot.
+O projeto tem foco educativo e esta evoluindo em camadas: entidades,
+repositories, services, regras de negocio, depois DTOs, mappers,
+controllers, tratamento global de excecoes, testes e, por ultimo,
+autenticacao/JWT.
 
-Data deste contexto: 2026-05-17.
+Atualizado em: 2026-05-18.
 
 ## Current Workspace
 
@@ -17,7 +21,7 @@ Main package:
 Maven:
 - `groupId`: `br.com.jhonnyazevedo`
 - `artifactId`: `timegrid-backend`
-- versão: `0.0.1-SNAPSHOT`
+- versao: `0.0.1-SNAPSHOT`
 
 ## Tech Stack
 
@@ -30,30 +34,37 @@ Maven:
 - Lombok
 - PostgreSQL no perfil `dev`
 - H2 no perfil `test`
-- Flyway está no `pom.xml`, mas ainda não há migrations em `src/main/resources`
-- Spring AI Anthropic está no `pom.xml`, mas ainda não aparece usado no código
+- Flyway esta no `pom.xml`, mas ainda nao ha migrations em `src/main/resources`
+- Spring AI Anthropic esta no `pom.xml`, mas ainda nao aparece usado no codigo
 
 ## Current Project Structure
 
 Main folders:
 
 - `appointment`
-   - `entity`
-   - `repository`
-   - `service`
+  - `entity`
+  - `repository`
+  - `service`
 - `client`
-   - `entity`
-   - `repository`
-   - `service`
+  - `entity`
+  - `repository`
+  - `service`
 - `user`
-   - `entity`
-   - `repository`
-   - `service`
+  - `entity`
+  - `repository`
+  - `service`
 - `config`
 - `enums`
 - `exception`
 
-Atualmente não há controllers REST, DTOs, mappers, autenticação JWT implementada, nem handlers globais de exceção.
+Ainda nao existem:
+- controllers REST
+- DTOs
+- mappers
+- autenticacao JWT real
+- `PasswordEncoder`
+- `@RestControllerAdvice`
+- testes especificos de services/repositories
 
 ## Configuration
 
@@ -70,28 +81,30 @@ Atualmente não há controllers REST, DTOs, mappers, autenticação JWT implemen
 - `spring.jpa.show-sql=true`
 
 `application-test.properties`:
-- H2 em memória
+- H2 em memoria
 - H2 console habilitado em `/h2-console`
 - `spring.jpa.hibernate.ddl-auto=update`
 - SQL formatado e exibido
 
 `application-prod.properties`:
-- existe, mas está vazio.
+- existe, mas esta vazio.
 
 ## Security
 
 Classe:
-`SecurityConfig`
+`config.SecurityConfig`
 
 Estado atual:
 - CSRF desabilitado
 - frame options desabilitado para permitir H2 console
 - `/h2-console/**` liberado
-- todas as demais rotas também estão liberadas com `anyRequest().permitAll()`
+- todas as demais rotas tambem estao liberadas com `anyRequest().permitAll()`
 
 Importante:
-- Spring Security está configurado, mas ainda não existe autenticação real.
-- README cita JWT e senhas criptografadas, mas isso ainda não está implementado no código atual.
+- Spring Security esta configurado, mas ainda nao existe autenticacao real.
+- JWT deve ficar para uma etapa posterior, depois de DTOs, controllers,
+  exception handler, testes e senha criptografada.
+- Antes de qualquer login real, implementar `PasswordEncoder`.
 
 ## Domain Model
 
@@ -113,17 +126,21 @@ Campos:
 
 Regras/constraints:
 - tabela `users`
-- `username` obrigatório e único
-- `email` obrigatório e único
-- `password` obrigatório
-- `role` obrigatório, salvo como `EnumType.STRING`
-- `active` obrigatório
+- `username` obrigatorio e unico
+- `email` obrigatorio e unico
+- `password` obrigatorio
+- `role` obrigatorio, salvo como `EnumType.STRING`
+- `active` obrigatorio
 - `createdAt` com `@CreationTimestamp`
 
 Relacionamentos:
 - `User` tem muitos `Appointment`
 - `User` tem muitos `Client`
 - ambos com `cascade = CascadeType.ALL` e `orphanRemoval = true`
+
+Regra importante:
+- delete de usuario agora e soft delete: `active=false`.
+- `listUsers()` lista somente usuarios ativos.
 
 ### Client
 
@@ -140,14 +157,20 @@ Campos:
 
 Regras/constraints:
 - tabela `clients`
-- `name` obrigatório
-- `phone` obrigatório
+- `name` obrigatorio
+- `phone` obrigatorio
 - `createdAt` com `@CreationTimestamp`
 
 Relacionamentos:
-- muitos clientes pertencem a um usuário
+- muitos clientes pertencem a um usuario
 - `user` usa `@ManyToOne(fetch = FetchType.LAZY)`
 - cliente tem muitos agendamentos
+
+Regra importante:
+- delete de cliente agora recebe `userId` e `clientId` e valida se o cliente
+  pertence ao usuario antes de deletar.
+- Deletar cliente pode impactar agendamentos por causa do relacionamento com
+  cascade/orphan removal. Confirmar regra de negocio antes de expor endpoint.
 
 ### Appointment
 
@@ -166,17 +189,25 @@ Campos:
 
 Regras/constraints:
 - tabela `appointments`
-- `service` obrigatório
-- `appointmentDate` obrigatório
-- `startTime` obrigatório
-- `endTime` obrigatório
+- `service` obrigatorio
+- `appointmentDate` obrigatorio
+- `startTime` obrigatorio
+- `endTime` obrigatorio
 - `startTime` e `endTime` salvos como `EnumType.STRING`
-- constraint única em `user_id`, `appointmentDate`, `startTime`
+- constraint unica em `user_id`, `appointmentDate`, `startTime`
 
 Relacionamentos:
-- muitos agendamentos pertencem a um usuário
+- muitos agendamentos pertencem a um usuario
 - muitos agendamentos pertencem a um cliente
 - ambos usam `@ManyToOne(fetch = FetchType.LAZY)`
+
+Regra importante de update:
+- `updateAppointment(UUID userId, Appointment appointment)` atualiza somente:
+  - `endTime`
+  - `service`
+- `startTime`, `appointmentDate`, `client` e `user` nao sao alterados no update.
+- A validacao usa os dados existentes do banco para usuario, data e horario
+  inicial, e usa o novo `endTime` recebido.
 
 ## Enums
 
@@ -218,6 +249,13 @@ Valores:
 - `T2130`
 - `T2200`
 
+Regra de negocio decidida:
+- horarios encostados devem ser considerados conflito.
+- Exemplo: se existe `09:00-10:00`, o proximo horario permitido e `10:30`.
+- Portanto, manter a query de conflito com comparacao inclusiva:
+  - `a.startTime <= :endTime`
+  - `a.endTime >= :startTime`
+
 ### UserRole
 
 Classe:
@@ -237,11 +275,12 @@ Classe:
 Extende:
 `JpaRepository<User, UUID>`
 
-Métodos:
+Metodos:
 - `Optional<User> findByEmail(String email)`
 - `Optional<User> findByUsername(String username)`
 - `boolean existsByEmail(String email)`
 - `boolean existsByUsername(String username)`
+- `List<User> findByActiveTrue()`
 
 ### ClientRepository
 
@@ -251,9 +290,15 @@ Classe:
 Extende:
 `JpaRepository<Client, UUID>`
 
-Métodos:
+Metodos:
 - `List<Client> findByUser(User user)`
 - `boolean existsByUserAndPhone(User user, String phone)`
+- `Optional<Client> findByUserAndPhone(User user, String phone)`
+
+Uso atual:
+- `existsByUserAndPhone` e usado no create.
+- `findByUserAndPhone` e usado no update para validar duplicidade ignorando
+  o proprio cliente.
 
 ### AppointmentRepository
 
@@ -263,17 +308,12 @@ Classe:
 Extende:
 `JpaRepository<Appointment, UUID>`
 
-Métodos:
+Metodos:
 - `List<Appointment> findByUserAndAppointmentDate(User user, LocalDate appointmentDate)`
 - `boolean existsConflict(User user, LocalDate date, TimeGrid startTime, TimeGrid endTime, UUID appointmentId)`
 
-A query `existsConflict` verifica conflito de intervalo de horário para o mesmo usuário e data.
-
-A lógica atual usa:
-- `a.startTime <= :endTime`
-- `a.endTime >= :startTime`
-
-Atenção futura: essa regra considera horários encostados como conflito. Exemplo: 08:00-09:00 e 09:00-10:00 podem conflitar. Se o comportamento desejado for permitir agendamentos colados, ajustar para comparação estrita.
+A query `existsConflict` verifica conflito de intervalo para o mesmo usuario
+e data. A regra atual considera horarios encostados como conflito.
 
 ## Services
 
@@ -282,10 +322,10 @@ Atenção futura: essa regra considera horários encostados como conflito. Exemp
 Interface:
 `user.service.UserService`
 
-Implementação:
+Implementacao:
 `user.service.UserServiceImpl`
 
-Métodos:
+Metodos:
 - `createUser(User user)`
 - `findById(UUID id)`
 - `listUsers()`
@@ -294,78 +334,88 @@ Métodos:
 - `setActive(UUID id, Boolean active)`
 
 Regras atuais:
-- não permite email duplicado ao criar
-- não permite username duplicado ao criar
-- ao criar usuário, define `active = true`
-- busca por ID lança `BusinessException` se não encontrar
-- update altera username, email, password e role
+- nao permite email duplicado ao criar
+- nao permite username duplicado ao criar
+- ao criar usuario, define `active = true`
+- busca por ID lanca `BusinessException` se nao encontrar
+- `listUsers()` retorna somente usuarios ativos via `findByActiveTrue()`
+- `updateUser` valida `username` e `email` obrigatorios
+- `updateUser` valida duplicidade de `email` e `username`, ignorando o proprio usuario
+- `updateUser` altera username, email, password e role
+- `deleteUser` nao apaga fisicamente; define `active=false`
 
-Atenções:
-- update ainda não valida duplicidade de email/username
-- senha ainda é salva como texto recebido, sem criptografia
-- delete usa `deleteById` direto
+Atencoes:
+- senha ainda e salva como texto recebido, sem criptografia
+- quando implementar autenticacao, adicionar `PasswordEncoder` antes de login/JWT
+- avaliar validacoes de `password` e `role` no update/criacao quando DTOs forem criados
 
 ### ClientService
 
 Interface:
 `client.service.ClientService`
 
-Implementação:
+Implementacao:
 `client.service.ClientServiceImpl`
 
-Métodos:
+Metodos:
 - `createClient(UUID userId, Client client)`
 - `listByUser(UUID userId)`
 - `findById(UUID id)`
 - `updateClient(UUID id, Client client)`
-- `deleteClient(UUID id)`
+- `deleteClient(UUID userId, UUID clientId)`
 
 Regras atuais:
-- cliente precisa pertencer a um usuário existente
-- não permite cadastrar cliente com mesmo telefone para o mesmo usuário
-- lista clientes por usuário
-- update altera nome e telefone
+- cliente precisa pertencer a um usuario existente
+- nao permite cadastrar cliente com mesmo telefone para o mesmo usuario
+- lista clientes por usuario
+- `updateClient` valida `name` e `phone` obrigatorios
+- `updateClient` valida duplicidade de telefone para o mesmo usuario,
+  ignorando o proprio cliente
+- `updateClient` altera nome e telefone
+- `deleteClient` valida se o cliente pertence ao usuario antes de deletar
 
-Atenções:
-- update ainda não valida duplicidade de telefone
-- delete usa `deleteById` direto
-- ainda não há validação via DTO
+Atencoes:
+- ainda nao ha DTOs/Bean Validation
+- avaliar se deletar cliente deve apagar agendamentos ou se deve bloquear
+  delete quando houver historico
 
 ### AppointmentService
 
 Interface:
 `appointment.service.AppointmentService`
 
-Implementação:
+Implementacao:
 `appointment.service.AppointmentServiceImpl`
 
-Métodos:
+Metodos:
 - `createAppointment(UUID userId, UUID clientId, Appointment appointment)`
 - `updateAppointment(UUID userId, Appointment appointment)`
 - `listAppointmentsByDate(UUID userId, LocalDate date)`
 - `deleteAppointment(UUID id)`
 
-Regras atuais de criação:
-- `startTime`, `endTime` e `appointmentDate` são obrigatórios
-- `startTime` não pode ser maior que `endTime`
-- não permite agendamento em data passada
-- usuário precisa existir
+Regras atuais de criacao:
+- `startTime`, `endTime` e `appointmentDate` sao obrigatorios
+- `startTime` nao pode ser maior que `endTime`
+- nao permite agendamento em data passada
+- usuario precisa existir
 - cliente precisa existir
-- cliente precisa pertencer ao usuário
-- não permite conflito de horário usando `existsConflict`
+- cliente precisa pertencer ao usuario
+- nao permite conflito de horario usando `existsConflict`
 - define `user` e `client` antes de salvar
 
 Regras atuais de update:
 - busca agendamento pelo ID do objeto recebido
-- valida se o agendamento pertence ao usuário
-- valida conflito de horário ignorando o próprio agendamento
-- atualiza `endTime` e `service`
+- valida se o agendamento pertence ao usuario recebido por parametro
+- exige novo `endTime`
+- exige `service` nao nulo e nao vazio
+- valida se o `startTime` existente no banco nao e maior que o novo `endTime`
+- valida conflito usando usuario/data/startTime existentes e novo `endTime`
+- atualiza somente `endTime` e `service`
 
-Atenções importantes:
-- no update, a validação de horário usa os dados antigos de `existAppointment`, não os novos dados recebidos.
-- no update, apenas `endTime` e `service` são atualizados; `startTime`, `appointmentDate` e `client` não mudam.
-- no update, a checagem de conflito também usa data/horários antigos.
-- delete não recebe `userId`, então ainda não garante que o agendamento deletado pertence ao usuário logado.
+Atencoes importantes:
+- `deleteAppointment(UUID id)` ainda nao recebe `userId`, entao ainda nao garante
+  que o agendamento deletado pertence ao usuario logado.
+- Futuramente, considerar mudar para `deleteAppointment(UUID userId, UUID appointmentId)`.
 
 ## Exception
 
@@ -375,11 +425,11 @@ Classe:
 Estado atual:
 - `RuntimeException` simples com construtor recebendo `message`.
 
-Ainda não existe:
+Ainda nao existe:
 - `@RestControllerAdvice`
 - `@ExceptionHandler`
-- padronização de resposta de erro
-- status HTTP específico por tipo de erro
+- padronizacao de resposta de erro
+- status HTTP especifico por tipo de erro
 
 ## Tests
 
@@ -389,7 +439,15 @@ Existe apenas:
 Teste atual:
 - `contextLoads()`
 
-Ainda não há testes de services, repositories, regras de conflito de horário, segurança ou validações.
+Ainda nao ha testes de:
+- services
+- repositories
+- conflito de horario
+- horarios encostados como conflito
+- cliente que nao pertence ao usuario
+- soft delete de usuario
+- delete de cliente com pertencimento
+- seguranca/autenticacao
 
 ## Current Implementation Status
 
@@ -398,69 +456,122 @@ Implementado:
 - enums
 - repositories
 - services
-- regras iniciais de negócio
-- configuração básica de segurança
+- regras iniciais de negocio
+- validacoes adicionais em updates
+- soft delete de usuario
+- delete de cliente com validacao de pertencimento
+- listagem de usuarios ativos
+- configuracao basica de seguranca liberando tudo
 - perfis `dev` e `test`
 - PostgreSQL no desenvolvimento
 - H2 para teste
-- constraint única parcial para agendamento por usuário/data/horário inicial
+- constraint unica parcial para agendamento por usuario/data/horario inicial
 
 Ainda pendente:
-- controllers REST
 - DTOs de request/response
+- mappers manuais
+- controllers REST
 - Bean Validation nos DTOs
-- mapper manual ou MapStruct
-- autenticação e autorização reais
+- handler global de excecoes
+- `PasswordEncoder`
+- autenticacao e autorizacao reais
 - JWT
-- criptografia de senha com `PasswordEncoder`
-- handler global de exceções
 - migrations Flyway
-- testes de regra de negócio
-- revisão do `pom.xml` para remover dependências ainda não usadas
-- configuração de produção
-- documentação README alinhada ao estado real do código
+- testes de regra de negocio
+- revisao do `pom.xml` para remover dependencias ainda nao usadas
+- configuracao de producao
+- documentacao README alinhada ao estado real do codigo
+
+## Recommended Next Path
+
+Ordem recomendada para continuar:
+
+1. Criar DTOs por dominio.
+2. Criar mappers manuais por dominio.
+3. Criar controllers REST usando os services existentes.
+4. Criar `GlobalExceptionHandler` com `@RestControllerAdvice`.
+5. Criar testes dos services, principalmente regras de negocio.
+6. Adicionar `PasswordEncoder`.
+7. Preparar fluxo de autenticacao.
+8. Implementar JWT somente depois que o restante estiver estavel.
+
+DTOs sugeridos inicialmente:
+- `UserRequest`
+- `UserResponse`
+- `ClientRequest`
+- `ClientResponse`
+- `AppointmentRequest`
+- `AppointmentResponse`
+- `AppointmentUpdateRequest`
+
+Organizacao sugerida:
+
+```text
+user/
+  dto/
+  mapper/
+  entity/
+  repository/
+  service/
+
+client/
+  dto/
+  mapper/
+  entity/
+  repository/
+  service/
+
+appointment/
+  dto/
+  mapper/
+  entity/
+  repository/
+  service/
+```
+
+Fluxo desejado:
+
+```text
+Front-end
+  -> Controller
+  -> Request DTO
+  -> Mapper
+  -> Entity
+  -> Service
+  -> Repository
+  -> Banco
+
+Banco
+  -> Entity
+  -> Service
+  -> Mapper
+  -> Response DTO
+  -> Controller
+  -> Front-end
+```
+
+Sugestao educativa:
+- comecar por `Client`, porque e mais simples
+- depois `User`
+- por ultimo `Appointment`, porque envolve usuario, cliente, data, horarios e conflito
 
 ## Development Rules For Future Agents
 
-1. Manter acesso somente leitura, salvo se o usuário pedir explicitamente para editar arquivos.
-2. Se for sugerir alterações, entregar o código no chat para o usuário copiar manualmente.
-3. Antes de propor mudanças, ler o código atual e respeitar a estrutura existente.
-4. Não assumir que JWT, controllers ou DTOs já existem.
-5. Não prometer comportamento que ainda não está implementado.
-6. Priorizar melhorias incrementais e educativas, explicando o motivo das mudanças.
-7. Evitar refatorações grandes sem necessidade.
-8. Preservar a divisão atual por domínio: `user`, `client`, `appointment`.
-9. Preferir DTOs para entrada/saída de API quando os controllers forem criados.
-10. Não colocar regras de negócio complexas dentro das entidades.
-11. Usar `BusinessException` para regras de negócio até existir um tratamento global melhor.
+1. Manter acesso somente leitura, salvo se o usuario pedir explicitamente para editar arquivos.
+2. Antes de propor mudancas, ler o codigo atual e respeitar a estrutura existente.
+3. Nao assumir que JWT, controllers ou DTOs ja existem.
+4. Nao prometer comportamento que ainda nao esta implementado.
+5. Priorizar melhorias incrementais e educativas, explicando o motivo das mudancas.
+6. Evitar refatoracoes grandes sem necessidade.
+7. Preservar a divisao atual por dominio: `user`, `client`, `appointment`.
+8. Preferir DTOs para entrada/saida de API quando os controllers forem criados.
+9. Preferir mappers manuais inicialmente, para manter o aprendizado claro.
+10. Nao colocar regras de negocio complexas dentro das entidades.
+11. Usar `BusinessException` para regras de negocio ate existir tratamento global melhor.
 12. Ao sugerir endpoints, usar os services existentes em vez de acessar repositories diretamente nos controllers.
-13. Ao sugerir autenticação, implementar senha criptografada antes de qualquer login real.
-14. Ao trabalhar com agendamentos, tomar cuidado com conflito de intervalo e pertencimento do cliente ao usuário.
-15. Ao sugerir testes, começar pelos services, especialmente `AppointmentServiceImpl`.
-
-## Suggested Next Steps
-
-Prioridade 1:
-- Criar DTOs para User, Client e Appointment.
-- Criar controllers REST usando os services existentes.
-- Criar `GlobalExceptionHandler` com `@RestControllerAdvice`.
-
-Prioridade 2:
-- Corrigir lógica de update de agendamento para validar e salvar os novos horários/data.
-- Decidir se horários encostados devem ser permitidos.
-- Proteger delete/update por `userId`.
-
-Prioridade 3:
-- Adicionar `PasswordEncoder`.
-- Preparar fluxo de autenticação.
-- Implementar JWT somente depois que senha criptografada e DTOs estiverem organizados.
-
-Prioridade 4:
-- Criar testes unitários/integrados dos services.
-- Adicionar testes para conflito de horário.
-- Adicionar testes para cliente que não pertence ao usuário.
-
-Prioridade 5:
-- Revisar dependências do `pom.xml`.
-- Remover dependências ainda não usadas, se o objetivo for manter o projeto mais simples.
-- Criar migrations Flyway quando o modelo estabilizar.
+13. Ao sugerir autenticacao, implementar senha criptografada antes de qualquer login real.
+14. Ao trabalhar com agendamentos, respeitar a regra de que horarios encostados sao conflito.
+15. Ao trabalhar com update de agendamento, lembrar que ele altera somente `endTime` e `service`.
+16. Ao sugerir delete de appointment, preferir adicionar `userId` para validar pertencimento.
+17. Ao sugerir testes, comecar pelos services, especialmente `AppointmentServiceImpl`.
+18. JWT deve ficar para depois de DTOs, mappers, controllers, exception handler e testes basicos.

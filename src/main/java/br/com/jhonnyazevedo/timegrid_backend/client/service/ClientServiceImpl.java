@@ -54,6 +54,20 @@ public class ClientServiceImpl implements ClientService {
 
         Client existing = findById(id);
 
+        if (client.getName() == null || client.getName().isBlank()) {
+            throw new BusinessException("Nome do cliente é obrigatório.");
+        }
+
+        if (client.getPhone() == null || client.getPhone().isBlank()) {
+            throw new BusinessException("Telefone do cliente é obrigatório.");
+        }
+
+        clientRepository.findByUserAndPhone(existing.getUser(), client.getPhone())
+                .filter(found -> !found.getId().equals(id))
+                .ifPresent(found -> {
+                    throw new BusinessException("Cliente já cadastrado com esse telefone.");
+                });
+
         existing.setName(client.getName());
         existing.setPhone(client.getPhone());
 
@@ -61,7 +75,13 @@ public class ClientServiceImpl implements ClientService {
     }
 
     @Override
-    public void deleteClient(UUID id) {
-        clientRepository.deleteById(id);
+    public void deleteClient(UUID userId, UUID clientId) {
+        Client client = findById(clientId);
+
+        if (!client.getUser().getId().equals(userId)) {
+            throw new BusinessException("Cliente não pertence ao usuário");
+        }
+
+        clientRepository.delete(client);
     }
 }

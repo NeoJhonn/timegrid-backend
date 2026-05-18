@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -22,4 +23,9 @@ public interface ClientRepository extends JpaRepository<Client, UUID> {
      *  Ajuda a evitar duplicidade de clientes.
      */
     boolean existsByUserAndPhone(User user, String phone);
+
+    /**
+     * Busca um cliente pelo usuário e telefone.
+     */
+    Optional<Client> findByUserAndPhone(User user, String phone);
 }
