@@ -35,7 +35,8 @@ Maven:
 - PostgreSQL no perfil `dev`
 - H2 no perfil `test`
 - Flyway esta no `pom.xml`, mas ainda nao ha migrations em `src/main/resources`
-- Spring AI Anthropic esta no `pom.xml`, mas ainda nao aparece usado no codigo
+- O `pom.xml` foi limpo em 2026-05-18 para manter somente dependencias usadas
+  ou planejadas no curto prazo.
 
 ## Current Project Structure
 
@@ -105,6 +106,41 @@ Importante:
 - JWT deve ficar para uma etapa posterior, depois de DTOs, controllers,
   exception handler, testes e senha criptografada.
 - Antes de qualquer login real, implementar `PasswordEncoder`.
+
+## POM / Dependencies
+
+O `pom.xml` foi limpo em 2026-05-18.
+
+Dependencias mantidas:
+- Spring Web MVC
+- Spring Data JPA
+- Spring Security
+- Spring Validation
+- Flyway
+- Flyway PostgreSQL support
+- PostgreSQL runtime
+- H2 runtime
+- H2 console
+- Lombok
+- Devtools
+- starters de teste relacionados a Web MVC, JPA, Security, Validation e Flyway
+
+Dependencias removidas por nao estarem em uso:
+- Spring Data JDBC
+- Spring Data REST
+- Spring GraphQL
+- Spring RestClient
+- Spring WebClient
+- Spring AI Anthropic
+- Spring AI BOM/dependency management
+- testes relacionados a dependencias removidas
+- Redis/session test starter
+
+Observacao importante:
+- Como `spring-boot-starter-data-rest` foi removido, os repositories nao sao
+  mais expostos automaticamente como endpoints REST.
+- Enquanto nao existirem controllers REST proprios, acessar
+  `http://localhost:8080` pode exibir Whitelabel/404. Isso e esperado.
 
 ## Domain Model
 
@@ -466,6 +502,8 @@ Implementado:
 - PostgreSQL no desenvolvimento
 - H2 para teste
 - constraint unica parcial para agendamento por usuario/data/horario inicial
+- `pom.xml` limpo, sem dependencias nao usadas como Data REST, GraphQL,
+  WebClient, RestClient, JDBC e Spring AI
 
 Ainda pendente:
 - DTOs de request/response
@@ -478,7 +516,6 @@ Ainda pendente:
 - JWT
 - migrations Flyway
 - testes de regra de negocio
-- revisao do `pom.xml` para remover dependencias ainda nao usadas
 - configuracao de producao
 - documentacao README alinhada ao estado real do codigo
 
