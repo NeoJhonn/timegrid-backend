@@ -85,8 +85,13 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new BusinessException("Agendamento não pertence ao usuário");
         }
 
+        if (appointment.getEndTime() == null || appointment.getService() == null
+                || appointment.getService().isBlank()) {
+            throw new BusinessException("Horário final e serviço são obrigatórios");
+        }
+
         // Validação de Horário
-        if (existAppointment.getStartTime().ordinal() > existAppointment.getEndTime().ordinal()) {
+        if (existAppointment.getStartTime().ordinal() > appointment.getEndTime().ordinal()) {
             throw new BusinessException("Horário de início não pode ser maior que horário final");
         }
 
@@ -95,7 +100,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 existAppointment.getUser(),
                 existAppointment.getAppointmentDate(),
                 existAppointment.getStartTime(),
-                existAppointment.getEndTime(),
+                appointment.getEndTime(),
                 existAppointment.getId()
         );
 

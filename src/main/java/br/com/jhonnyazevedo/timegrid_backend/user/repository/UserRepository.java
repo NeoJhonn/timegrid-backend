@@ -5,6 +5,7 @@ import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,4 +36,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * Evidta duplicidade no sistema.
      */
     boolean existsByUsername(String username);
+
+    /**
+     *  Busca todos os usuários que estão ativos
+     */
+    List<User> findByActiveTrue();
 }

@@ -39,13 +39,33 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<User> listUsers() {
-        return userRepository.findAll();
+        return userRepository.findByActiveTrue();
     }
 
     @Override
     public User updateUser(UUID id, User user) {
 
         User existing = findById(id);
+
+        if (user.getUsername() == null || user.getUsername().isBlank()) {
+            throw new BusinessException("Username é obrigatório.");
+        }
+
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            throw new BusinessException("Email é obrigatório.");
+        }
+
+        userRepository.findByEmail(user.getEmail())
+                .filter(found -> !found.getId().equals(id))
+                .ifPresent(found -> {
+                    throw new BusinessException("Email já cadastrado.");
+                });
+
+        userRepository.findByUsername(user.getUsername())
+                .filter(found -> !found.getId().equals(id))
+                .ifPresent(found -> {
+                    throw new BusinessException("Username já cadastrado.");
+                });
 
         existing.setUsername(user.getUsername());
         existing.setEmail(user.getEmail());
@@ -57,7 +77,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void deleteUser(UUID id) {
-        userRepository.deleteById(id);
+        User user = findById(id);
+        user.setActive(false);
+
+        userRepository.save(user);
     }
 
     @Override
