@@ -8,7 +8,7 @@ repositories, services, regras de negocio, depois DTOs, mappers,
 controllers, tratamento global de excecoes, testes e, por ultimo,
 autenticacao/JWT.
 
-Atualizado em: 2026-05-18.
+Atualizado em: 2026-06-12.
 
 ## Current Workspace
 
@@ -43,15 +43,21 @@ Maven:
 Main folders:
 
 - `appointment`
+  - `dto`
   - `entity`
+  - `mapper`
   - `repository`
   - `service`
 - `client`
+  - `dto`
   - `entity`
+  - `mapper`
   - `repository`
   - `service`
 - `user`
+  - `dto`
   - `entity`
+  - `mapper`
   - `repository`
   - `service`
 - `config`
@@ -60,8 +66,6 @@ Main folders:
 
 Ainda nao existem:
 - controllers REST
-- DTOs
-- mappers
 - autenticacao JWT real
 - `PasswordEncoder`
 - `@RestControllerAdvice`
@@ -351,6 +355,147 @@ Metodos:
 A query `existsConflict` verifica conflito de intervalo para o mesmo usuario
 e data. A regra atual considera horarios encostados como conflito.
 
+## DTOs And Manual Mappers
+
+DTOs e mappers manuais foram criados em 2026-06-12.
+
+Padrao adotado:
+- DTOs implementados como Java `record`.
+- Validacao de entrada com Jakarta Bean Validation nos request DTOs.
+- Mappers manuais anotados com `@Component`.
+- Response DTOs nao expõem senha.
+- Mappers convertem request DTO para entidade e entidade para response DTO.
+- Controllers ainda nao existem; quando forem criados, devem receber DTOs,
+  usar mappers e chamar os services existentes.
+
+### User DTOs
+
+Pacote:
+`user.dto`
+
+Arquivos:
+- `UserRequest`
+- `UserResponse`
+
+`UserRequest` contem:
+- `username`
+- `email`
+- `password`
+- `role`
+
+Validacoes:
+- `username`: `@NotBlank`
+- `email`: `@NotBlank` e `@Email`
+- `password`: `@NotBlank`
+- `role`: `@NotNull`
+
+`UserResponse` contem:
+- `id`
+- `username`
+- `email`
+- `role`
+- `active`
+- `createdAt`
+
+Importante:
+- `UserResponse` nao retorna `password`.
+
+Mapper:
+`user.mapper.UserMapper`
+
+Metodos:
+- `User toEntity(UserRequest request)`
+- `UserResponse toResponse(User user)`
+- `List<UserResponse> toResponseList(List<User> users)`
+
+### Client DTOs
+
+Pacote:
+`client.dto`
+
+Arquivos:
+- `ClientRequest`
+- `ClientResponse`
+
+`ClientRequest` contem:
+- `name`
+- `phone`
+
+Validacoes:
+- `name`: `@NotBlank`
+- `phone`: `@NotBlank`
+
+`ClientResponse` contem:
+- `id`
+- `name`
+- `phone`
+- `userId`
+- `createdAt`
+
+Mapper:
+`client.mapper.ClientMapper`
+
+Metodos:
+- `Client toEntity(ClientRequest request)`
+- `ClientResponse toResponse(Client client)`
+- `List<ClientResponse> toResponseList(List<Client> clients)`
+
+### Appointment DTOs
+
+Pacote:
+`appointment.dto`
+
+Arquivos:
+- `AppointmentRequest`
+- `AppointmentUpdateRequest`
+- `AppointmentResponse`
+
+`AppointmentRequest` contem:
+- `clientId`
+- `service`
+- `appointmentDate`
+- `startTime`
+- `endTime`
+
+Validacoes:
+- `clientId`: `@NotNull`
+- `service`: `@NotBlank`
+- `appointmentDate`: `@NotNull` e `@FutureOrPresent`
+- `startTime`: `@NotNull`
+- `endTime`: `@NotNull`
+
+`AppointmentUpdateRequest` reflete a regra atual de update e contem somente:
+- `endTime`
+- `service`
+
+Validacoes:
+- `endTime`: `@NotNull`
+- `service`: `@NotBlank`
+
+`AppointmentResponse` contem:
+- `id`
+- `userId`
+- `clientId`
+- `clientName`
+- `service`
+- `appointmentDate`
+- `startTime`
+- `endTime`
+- `createdAt`
+
+Mapper:
+`appointment.mapper.AppointmentMapper`
+
+Metodos:
+- `Appointment toEntity(AppointmentRequest request)`
+- `Appointment toEntity(UUID appointmentId, AppointmentUpdateRequest request)`
+- `AppointmentResponse toResponse(Appointment appointment)`
+- `List<AppointmentResponse> toResponseList(List<Appointment> appointments)`
+
+Build verificado:
+- `mvn test` executado em 2026-06-12 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 1, Failures: 0, Errors: 0`.
+
 ## Services
 
 ### UserService
@@ -492,6 +637,8 @@ Implementado:
 - enums
 - repositories
 - services
+- DTOs de request/response
+- mappers manuais
 - regras iniciais de negocio
 - validacoes adicionais em updates
 - soft delete de usuario
@@ -506,10 +653,7 @@ Implementado:
   WebClient, RestClient, JDBC e Spring AI
 
 Ainda pendente:
-- DTOs de request/response
-- mappers manuais
 - controllers REST
-- Bean Validation nos DTOs
 - handler global de excecoes
 - `PasswordEncoder`
 - autenticacao e autorizacao reais
@@ -523,23 +667,12 @@ Ainda pendente:
 
 Ordem recomendada para continuar:
 
-1. Criar DTOs por dominio.
-2. Criar mappers manuais por dominio.
-3. Criar controllers REST usando os services existentes.
-4. Criar `GlobalExceptionHandler` com `@RestControllerAdvice`.
-5. Criar testes dos services, principalmente regras de negocio.
-6. Adicionar `PasswordEncoder`.
-7. Preparar fluxo de autenticacao.
-8. Implementar JWT somente depois que o restante estiver estavel.
-
-DTOs sugeridos inicialmente:
-- `UserRequest`
-- `UserResponse`
-- `ClientRequest`
-- `ClientResponse`
-- `AppointmentRequest`
-- `AppointmentResponse`
-- `AppointmentUpdateRequest`
+1. Criar controllers REST usando os DTOs, mappers e services existentes.
+2. Criar `GlobalExceptionHandler` com `@RestControllerAdvice`.
+3. Criar testes dos services, principalmente regras de negocio.
+4. Adicionar `PasswordEncoder`.
+5. Preparar fluxo de autenticacao.
+6. Implementar JWT somente depois que o restante estiver estavel.
 
 Organizacao sugerida:
 
@@ -588,7 +721,7 @@ Banco
 ```
 
 Sugestao educativa:
-- comecar por `Client`, porque e mais simples
+- comecar controllers por `Client`, porque e mais simples
 - depois `User`
 - por ultimo `Appointment`, porque envolve usuario, cliente, data, horarios e conflito
 
@@ -596,13 +729,13 @@ Sugestao educativa:
 
 1. Manter acesso somente leitura, salvo se o usuario pedir explicitamente para editar arquivos.
 2. Antes de propor mudancas, ler o codigo atual e respeitar a estrutura existente.
-3. Nao assumir que JWT, controllers ou DTOs ja existem.
+3. Nao assumir que JWT ou controllers ja existem.
 4. Nao prometer comportamento que ainda nao esta implementado.
 5. Priorizar melhorias incrementais e educativas, explicando o motivo das mudancas.
 6. Evitar refatoracoes grandes sem necessidade.
 7. Preservar a divisao atual por dominio: `user`, `client`, `appointment`.
-8. Preferir DTOs para entrada/saida de API quando os controllers forem criados.
-9. Preferir mappers manuais inicialmente, para manter o aprendizado claro.
+8. Usar os DTOs criados para entrada/saida de API quando os controllers forem criados.
+9. Usar os mappers manuais ja criados, mantendo o aprendizado claro.
 10. Nao colocar regras de negocio complexas dentro das entidades.
 11. Usar `BusinessException` para regras de negocio ate existir tratamento global melhor.
 12. Ao sugerir endpoints, usar os services existentes em vez de acessar repositories diretamente nos controllers.
