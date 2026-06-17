@@ -8,7 +8,7 @@ repositories, services, regras de negocio, depois DTOs, mappers,
 controllers, tratamento global de excecoes, testes e, por ultimo,
 autenticacao/JWT.
 
-Atualizado em: 2026-06-12.
+Atualizado em: 2026-06-17.
 
 ## Current Workspace
 
@@ -43,18 +43,21 @@ Maven:
 Main folders:
 
 - `appointment`
+  - `controller`
   - `dto`
   - `entity`
   - `mapper`
   - `repository`
   - `service`
 - `client`
+  - `controller`
   - `dto`
   - `entity`
   - `mapper`
   - `repository`
   - `service`
 - `user`
+  - `controller`
   - `dto`
   - `entity`
   - `mapper`
@@ -65,7 +68,6 @@ Main folders:
 - `exception`
 
 Ainda nao existem:
-- controllers REST
 - autenticacao JWT real
 - `PasswordEncoder`
 - `@RestControllerAdvice`
@@ -143,8 +145,9 @@ Dependencias removidas por nao estarem em uso:
 Observacao importante:
 - Como `spring-boot-starter-data-rest` foi removido, os repositories nao sao
   mais expostos automaticamente como endpoints REST.
-- Enquanto nao existirem controllers REST proprios, acessar
-  `http://localhost:8080` pode exibir Whitelabel/404. Isso e esperado.
+- Controllers REST proprios foram criados em 2026-06-17.
+- Acessar `http://localhost:8080` diretamente ainda pode exibir Whitelabel/404,
+  pois nao existe endpoint para `/`. Isso e esperado.
 
 ## Domain Model
 
@@ -365,8 +368,7 @@ Padrao adotado:
 - Mappers manuais anotados com `@Component`.
 - Response DTOs nao expõem senha.
 - Mappers convertem request DTO para entidade e entidade para response DTO.
-- Controllers ainda nao existem; quando forem criados, devem receber DTOs,
-  usar mappers e chamar os services existentes.
+- Controllers REST foram criados em 2026-06-17 usando DTOs, mappers e services.
 
 ### User DTOs
 
@@ -495,6 +497,102 @@ Metodos:
 Build verificado:
 - `mvn test` executado em 2026-06-12 com sucesso.
 - Resultado: `BUILD SUCCESS`, `Tests run: 1, Failures: 0, Errors: 0`.
+
+## Controllers REST
+
+Controllers REST foram criados em 2026-06-17.
+
+Padrao adotado:
+- Controllers recebem request DTOs com `@RequestBody @Valid`.
+- Controllers usam mappers manuais para converter DTO para entidade.
+- Controllers chamam os services existentes.
+- Controllers retornam response DTOs.
+- Controllers nao possuem `try/catch` local para regras de negocio.
+- Tratamento de excecoes deve ser centralizado futuramente com
+  `@RestControllerAdvice`.
+
+### UserController
+
+Classe:
+`user.controller.UserController`
+
+Base path:
+`/users`
+
+Endpoints:
+- `POST /users`
+- `GET /users`
+- `GET /users/{id}`
+- `PUT /users/{id}`
+- `DELETE /users/{id}`
+- `PATCH /users/{id}/active?active=true`
+
+Observacoes:
+- Usa `UserRequest`, `UserResponse` e `UserMapper`.
+- `DELETE /users/{id}` chama soft delete via `UserService.deleteUser`.
+- `PATCH /users/{id}/active` chama `UserService.setActive`.
+
+### ClientController
+
+Classe:
+`client.controller.ClientController`
+
+Endpoints:
+- `POST /users/{userId}/clients`
+- `GET /users/{userId}/clients`
+- `GET /clients/{id}`
+- `PUT /clients/{id}`
+- `DELETE /users/{userId}/clients/{clientId}`
+
+Observacoes:
+- Usa `ClientRequest`, `ClientResponse` e `ClientMapper`.
+- Create/list/delete carregam `userId` no path porque o service atual depende do
+  usuario para validar pertencimento e escopo.
+- `DELETE /users/{userId}/clients/{clientId}` valida pertencimento no service.
+
+### AppointmentController
+
+Classe:
+`appointment.controller.AppointmentController`
+
+Endpoints:
+- `POST /users/{userId}/appointments`
+- `GET /users/{userId}/appointments?date=yyyy-MM-dd`
+- `PUT /users/{userId}/appointments/{appointmentId}`
+- `DELETE /appointments/{appointmentId}`
+
+Observacoes:
+- Usa `AppointmentRequest`, `AppointmentUpdateRequest`,
+  `AppointmentResponse` e `AppointmentMapper`.
+- Create recebe `clientId` pelo `AppointmentRequest`.
+- Listagem por data usa query param `date` com formato ISO, exemplo:
+  `?date=2026-06-17`.
+- Update respeita a regra de negocio atual: altera somente `endTime` e
+  `service`.
+- Delete de appointment ainda nao recebe `userId`, pois o service atual ainda e
+  `deleteAppointment(UUID id)`. Melhorar futuramente para validar pertencimento.
+
+Build verificado:
+- `mvn test` executado em 2026-06-17 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 1, Failures: 0, Errors: 0`.
+
+## Exception Handling Direction
+
+Decisao tomada em 2026-06-17:
+- Nao adicionar `try/catch` repetido dentro dos controllers.
+- Proximo passo deve ser criar um `GlobalExceptionHandler` com
+  `@RestControllerAdvice`.
+
+Tratamentos sugeridos para o `GlobalExceptionHandler`:
+- `BusinessException`
+- erros de Bean Validation dos DTOs
+- parametros invalidos, como UUID ou data mal formatada
+- fallback generico para `Exception`
+
+Formato esperado futuramente:
+- respostas JSON padronizadas
+- status HTTP adequado por tipo de erro
+- mensagens de regra de negocio vindas de `BusinessException`
 
 ## Services
 
@@ -639,6 +737,7 @@ Implementado:
 - services
 - DTOs de request/response
 - mappers manuais
+- controllers REST
 - regras iniciais de negocio
 - validacoes adicionais em updates
 - soft delete de usuario
@@ -653,7 +752,6 @@ Implementado:
   WebClient, RestClient, JDBC e Spring AI
 
 Ainda pendente:
-- controllers REST
 - handler global de excecoes
 - `PasswordEncoder`
 - autenticacao e autorizacao reais
@@ -667,12 +765,11 @@ Ainda pendente:
 
 Ordem recomendada para continuar:
 
-1. Criar controllers REST usando os DTOs, mappers e services existentes.
-2. Criar `GlobalExceptionHandler` com `@RestControllerAdvice`.
-3. Criar testes dos services, principalmente regras de negocio.
-4. Adicionar `PasswordEncoder`.
-5. Preparar fluxo de autenticacao.
-6. Implementar JWT somente depois que o restante estiver estavel.
+1. Criar `GlobalExceptionHandler` com `@RestControllerAdvice`.
+2. Criar testes dos services, principalmente regras de negocio.
+3. Adicionar `PasswordEncoder`.
+4. Preparar fluxo de autenticacao.
+5. Implementar JWT somente depois que o restante estiver estavel.
 
 Organizacao sugerida:
 
@@ -721,20 +818,19 @@ Banco
 ```
 
 Sugestao educativa:
-- comecar controllers por `Client`, porque e mais simples
-- depois `User`
-- por ultimo `Appointment`, porque envolve usuario, cliente, data, horarios e conflito
+- proxima aula deve focar no `GlobalExceptionHandler`
+- depois disso, iniciar testes pelos services
 
 ## Development Rules For Future Agents
 
 1. Manter acesso somente leitura, salvo se o usuario pedir explicitamente para editar arquivos.
 2. Antes de propor mudancas, ler o codigo atual e respeitar a estrutura existente.
-3. Nao assumir que JWT ou controllers ja existem.
+3. Nao assumir que JWT ou handler global de excecoes ja existem.
 4. Nao prometer comportamento que ainda nao esta implementado.
 5. Priorizar melhorias incrementais e educativas, explicando o motivo das mudancas.
 6. Evitar refatoracoes grandes sem necessidade.
 7. Preservar a divisao atual por dominio: `user`, `client`, `appointment`.
-8. Usar os DTOs criados para entrada/saida de API quando os controllers forem criados.
+8. Usar os DTOs criados para entrada/saida de API nos controllers existentes.
 9. Usar os mappers manuais ja criados, mantendo o aprendizado claro.
 10. Nao colocar regras de negocio complexas dentro das entidades.
 11. Usar `BusinessException` para regras de negocio ate existir tratamento global melhor.
@@ -745,3 +841,4 @@ Sugestao educativa:
 16. Ao sugerir delete de appointment, preferir adicionar `userId` para validar pertencimento.
 17. Ao sugerir testes, comecar pelos services, especialmente `AppointmentServiceImpl`.
 18. JWT deve ficar para depois de DTOs, mappers, controllers, exception handler e testes basicos.
+19. Nao espalhar `try/catch` pelos controllers; centralizar tratamento com `@RestControllerAdvice`.
