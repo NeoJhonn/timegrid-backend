@@ -8,7 +8,7 @@ repositories, services, regras de negocio, depois DTOs, mappers,
 controllers, tratamento global de excecoes, testes e, por ultimo,
 autenticacao/JWT.
 
-Atualizado em: 2026-06-17.
+Atualizado em: 2026-07-21.
 
 ## Current Workspace
 
@@ -70,7 +70,6 @@ Main folders:
 Ainda nao existem:
 - autenticacao JWT real
 - `PasswordEncoder`
-- `@RestControllerAdvice`
 - testes especificos de services/repositories
 
 ## Configuration
@@ -576,23 +575,37 @@ Build verificado:
 - `mvn test` executado em 2026-06-17 com sucesso.
 - Resultado: `BUILD SUCCESS`, `Tests run: 1, Failures: 0, Errors: 0`.
 
-## Exception Handling Direction
+## Exception Handling
 
-Decisao tomada em 2026-06-17:
+Tratamento global de excecoes criado em 2026-07-21.
+
+Arquivos:
+- `exception.ErrorResponse`
+- `exception.ValidationErrorResponse`
+- `exception.GlobalExceptionHandler`
+
+Decisao tomada:
 - Nao adicionar `try/catch` repetido dentro dos controllers.
-- Proximo passo deve ser criar um `GlobalExceptionHandler` com
-  `@RestControllerAdvice`.
+- Centralizar tratamento com `@RestControllerAdvice`.
 
-Tratamentos sugeridos para o `GlobalExceptionHandler`:
-- `BusinessException`
-- erros de Bean Validation dos DTOs
-- parametros invalidos, como UUID ou data mal formatada
-- fallback generico para `Exception`
+Tratamentos implementados no `GlobalExceptionHandler`:
+- `BusinessException` retorna `400 Bad Request`
+- `MethodArgumentNotValidException` retorna `400 Bad Request` com mapa de campos
+- `MethodArgumentTypeMismatchException` retorna `400 Bad Request`
+- `HttpMessageNotReadableException` retorna `400 Bad Request`
+- `NoResourceFoundException` retorna `404 Not Found`
+- `Exception` retorna `500 Internal Server Error` como fallback
 
-Formato esperado futuramente:
+Formato atual:
 - respostas JSON padronizadas
 - status HTTP adequado por tipo de erro
 - mensagens de regra de negocio vindas de `BusinessException`
+- rota inexistente, como `GET /`, retorna `404` com mensagem
+  `Nao existe endpoint para este caminho`
+
+Build verificado:
+- `mvn test` executado em 2026-07-21 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 1, Failures: 0, Errors: 0`.
 
 ## Services
 
@@ -704,11 +717,9 @@ Classe:
 Estado atual:
 - `RuntimeException` simples com construtor recebendo `message`.
 
-Ainda nao existe:
-- `@RestControllerAdvice`
-- `@ExceptionHandler`
-- padronizacao de resposta de erro
-- status HTTP especifico por tipo de erro
+Tratamento atual:
+- `BusinessException` e capturada por `GlobalExceptionHandler`
+- resposta padronizada com status `400`
 
 ## Tests
 
@@ -738,6 +749,7 @@ Implementado:
 - DTOs de request/response
 - mappers manuais
 - controllers REST
+- handler global de excecoes
 - regras iniciais de negocio
 - validacoes adicionais em updates
 - soft delete de usuario
@@ -752,7 +764,6 @@ Implementado:
   WebClient, RestClient, JDBC e Spring AI
 
 Ainda pendente:
-- handler global de excecoes
 - `PasswordEncoder`
 - autenticacao e autorizacao reais
 - JWT
@@ -765,11 +776,10 @@ Ainda pendente:
 
 Ordem recomendada para continuar:
 
-1. Criar `GlobalExceptionHandler` com `@RestControllerAdvice`.
-2. Criar testes dos services, principalmente regras de negocio.
-3. Adicionar `PasswordEncoder`.
-4. Preparar fluxo de autenticacao.
-5. Implementar JWT somente depois que o restante estiver estavel.
+1. Criar testes dos services, principalmente regras de negocio.
+2. Adicionar `PasswordEncoder`.
+3. Preparar fluxo de autenticacao.
+4. Implementar JWT somente depois que o restante estiver estavel.
 
 Organizacao sugerida:
 
@@ -818,14 +828,15 @@ Banco
 ```
 
 Sugestao educativa:
-- proxima aula deve focar no `GlobalExceptionHandler`
-- depois disso, iniciar testes pelos services
+- proxima aula deve iniciar testes pelos services
+- comecar por `AppointmentServiceImpl`, pois concentra conflito de horarios,
+  data passada e pertencimento de cliente
 
 ## Development Rules For Future Agents
 
 1. Manter acesso somente leitura, salvo se o usuario pedir explicitamente para editar arquivos.
 2. Antes de propor mudancas, ler o codigo atual e respeitar a estrutura existente.
-3. Nao assumir que JWT ou handler global de excecoes ja existem.
+3. Nao assumir que JWT ja existe.
 4. Nao prometer comportamento que ainda nao esta implementado.
 5. Priorizar melhorias incrementais e educativas, explicando o motivo das mudancas.
 6. Evitar refatoracoes grandes sem necessidade.
