@@ -45,19 +45,23 @@ public class ClientController {
         return ResponseEntity.ok(clientMapper.toResponseList(clients));
     }
 
-    @GetMapping("/clients/{id}")
-    public ResponseEntity<ClientResponse> findById(@PathVariable UUID id) {
-        Client client = clientService.findById(id);
+    @GetMapping("/users/{userId}/clients/{clientId}")
+    public ResponseEntity<ClientResponse> findById(
+            @PathVariable UUID userId,
+            @PathVariable UUID clientId
+    ) {
+        Client client = clientService.findById(userId, clientId);
         return ResponseEntity.ok(clientMapper.toResponse(client));
     }
 
-    @PutMapping("/clients/{id}")
+    @PutMapping("/users/{userId}/clients/{clientId}")
     public ResponseEntity<ClientResponse> updateClient(
-            @PathVariable UUID id,
+            @PathVariable UUID userId,
+            @PathVariable UUID clientId,
             @RequestBody @Valid ClientRequest request
     ) {
         Client client = clientMapper.toEntity(request);
-        Client updatedClient = clientService.updateClient(id, client);
+        Client updatedClient = clientService.updateClient(userId, clientId, client);
         return ResponseEntity.ok(clientMapper.toResponse(updatedClient));
     }
 

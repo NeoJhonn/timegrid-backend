@@ -69,9 +69,12 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentMapper.toResponse(updatedAppointment));
     }
 
-    @DeleteMapping("/appointments/{appointmentId}")
-    public ResponseEntity<Void> deleteAppointment(@PathVariable UUID appointmentId) {
-        appointmentService.deleteAppointment(appointmentId);
+    @DeleteMapping("/users/{userId}/appointments/{appointmentId}")
+    public ResponseEntity<Void> deleteAppointment(
+            @PathVariable UUID userId,
+            @PathVariable UUID appointmentId
+    ) {
+        appointmentService.deleteAppointment(userId, appointmentId);
         return ResponseEntity.noContent().build();
     }
 }

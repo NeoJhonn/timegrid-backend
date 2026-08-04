@@ -8,7 +8,7 @@ repositories, services, regras de negocio, depois DTOs, mappers,
 controllers, tratamento global de excecoes, testes e, por ultimo,
 autenticacao/JWT.
 
-Atualizado em: 2026-07-21.
+Atualizado em: 2026-08-04.
 
 ## Current Workspace
 
@@ -34,7 +34,7 @@ Maven:
 - Lombok
 - PostgreSQL no perfil `dev`
 - H2 no perfil `test`
-- Flyway esta no `pom.xml`, mas ainda nao ha migrations em `src/main/resources`
+- Flyway esta configurado e possui migrations em `src/main/resources/db/migration`
 - O `pom.xml` foi limpo em 2026-05-18 para manter somente dependencias usadas
   ou planejadas no curto prazo.
 
@@ -83,14 +83,17 @@ Ainda nao existem:
 - database: `timegridDB`
 - username: `postgres`
 - password: `123456`
-- `spring.jpa.hibernate.ddl-auto=update`
+- `spring.jpa.hibernate.ddl-auto=validate`
 - `spring.jpa.show-sql=true`
+- `spring.flyway.baseline-on-migrate=true`
 
 `application-test.properties`:
 - H2 em memoria
 - H2 console habilitado em `/h2-console`
 - `spring.jpa.hibernate.ddl-auto=update`
 - SQL formatado e exibido
+- perfil de teste foi mantido como estava; o foco atual do versionamento esta
+  no PostgreSQL local do perfil `dev`
 
 `application-prod.properties`:
 - existe, mas esta vazio.
@@ -147,6 +150,38 @@ Observacao importante:
 - Controllers REST proprios foram criados em 2026-06-17.
 - Acessar `http://localhost:8080` diretamente ainda pode exibir Whitelabel/404,
   pois nao existe endpoint para `/`. Isso e esperado.
+
+## Database Versioning
+
+Versionamento de banco criado em 2026-08-04 com Flyway.
+
+Pasta:
+`src/main/resources/db/migration`
+
+Migrations atuais:
+- `V1__create_initial_schema.sql`
+  - cria as tabelas `users`, `clients` e `appointments`
+  - cria primary keys, foreign keys e constraints unicas principais
+  - usa `CREATE TABLE IF NOT EXISTS` para permitir transicao do banco dev que
+    ja tinha tabelas geradas previamente pelo Hibernate
+- `V2__seed_initial_data.sql`
+  - adiciona 3 usuarios ficticios
+  - adiciona 3 clientes ficticios
+  - adiciona 6 agendamentos ficticios
+  - usa IDs fixos para facilitar testes manuais de endpoints
+
+Estado atual:
+- Flyway ja aplicou as migrations no PostgreSQL local `timegridDB`
+- schema atual no dev: versao `2`
+- Hibernate no perfil `dev` esta em `validate`, entao ele apenas valida o schema
+  criado pelo Flyway
+- o seed foi confirmado pelo usuario no DBeaver
+
+Observacoes:
+- O seed ainda usa senhas em texto puro (`123456`) porque `PasswordEncoder`
+  ainda nao foi implementado.
+- Para producao, revisar credenciais, seed e estrategia de migrations antes do
+  primeiro deploy real.
 
 ## Domain Model
 
@@ -539,15 +574,15 @@ Classe:
 Endpoints:
 - `POST /users/{userId}/clients`
 - `GET /users/{userId}/clients`
-- `GET /clients/{id}`
-- `PUT /clients/{id}`
+- `GET /users/{userId}/clients/{clientId}`
+- `PUT /users/{userId}/clients/{clientId}`
 - `DELETE /users/{userId}/clients/{clientId}`
 
 Observacoes:
 - Usa `ClientRequest`, `ClientResponse` e `ClientMapper`.
-- Create/list/delete carregam `userId` no path porque o service atual depende do
-  usuario para validar pertencimento e escopo.
-- `DELETE /users/{userId}/clients/{clientId}` valida pertencimento no service.
+- Create/list/find/update/delete carregam `userId` no path porque o service atual
+  depende do usuario para validar pertencimento e escopo.
+- Find/update/delete validam pertencimento no service.
 
 ### AppointmentController
 
@@ -558,7 +593,7 @@ Endpoints:
 - `POST /users/{userId}/appointments`
 - `GET /users/{userId}/appointments?date=yyyy-MM-dd`
 - `PUT /users/{userId}/appointments/{appointmentId}`
-- `DELETE /appointments/{appointmentId}`
+- `DELETE /users/{userId}/appointments/{appointmentId}`
 
 Observacoes:
 - Usa `AppointmentRequest`, `AppointmentUpdateRequest`,
@@ -568,11 +603,11 @@ Observacoes:
   `?date=2026-06-17`.
 - Update respeita a regra de negocio atual: altera somente `endTime` e
   `service`.
-- Delete de appointment ainda nao recebe `userId`, pois o service atual ainda e
-  `deleteAppointment(UUID id)`. Melhorar futuramente para validar pertencimento.
+- Delete de appointment recebe `userId` e valida pertencimento no service antes
+  de deletar.
 
 Build verificado:
-- `mvn test` executado em 2026-06-17 com sucesso.
+- `mvn test` executado em 2026-08-04 com sucesso.
 - Resultado: `BUILD SUCCESS`, `Tests run: 1, Failures: 0, Errors: 0`.
 
 ## Exception Handling
@@ -652,14 +687,16 @@ Implementacao:
 Metodos:
 - `createClient(UUID userId, Client client)`
 - `listByUser(UUID userId)`
-- `findById(UUID id)`
-- `updateClient(UUID id, Client client)`
+- `findById(UUID userId, UUID clientId)`
+- `updateClient(UUID userId, UUID clientId, Client client)`
 - `deleteClient(UUID userId, UUID clientId)`
 
 Regras atuais:
 - cliente precisa pertencer a um usuario existente
 - nao permite cadastrar cliente com mesmo telefone para o mesmo usuario
 - lista clientes por usuario
+- `findById`, `updateClient` e `deleteClient` validam se o cliente pertence ao
+  usuario informado
 - `updateClient` valida `name` e `phone` obrigatorios
 - `updateClient` valida duplicidade de telefone para o mesmo usuario,
   ignorando o proprio cliente
@@ -667,7 +704,6 @@ Regras atuais:
 - `deleteClient` valida se o cliente pertence ao usuario antes de deletar
 
 Atencoes:
-- ainda nao ha DTOs/Bean Validation
 - avaliar se deletar cliente deve apagar agendamentos ou se deve bloquear
   delete quando houver historico
 
@@ -683,7 +719,7 @@ Metodos:
 - `createAppointment(UUID userId, UUID clientId, Appointment appointment)`
 - `updateAppointment(UUID userId, Appointment appointment)`
 - `listAppointmentsByDate(UUID userId, LocalDate date)`
-- `deleteAppointment(UUID id)`
+- `deleteAppointment(UUID userId, UUID appointmentId)`
 
 Regras atuais de criacao:
 - `startTime`, `endTime` e `appointmentDate` sao obrigatorios
@@ -704,10 +740,10 @@ Regras atuais de update:
 - valida conflito usando usuario/data/startTime existentes e novo `endTime`
 - atualiza somente `endTime` e `service`
 
-Atencoes importantes:
-- `deleteAppointment(UUID id)` ainda nao recebe `userId`, entao ainda nao garante
-  que o agendamento deletado pertence ao usuario logado.
-- Futuramente, considerar mudar para `deleteAppointment(UUID userId, UUID appointmentId)`.
+Regra atual de delete:
+- busca agendamento por `appointmentId`
+- valida se o agendamento pertence ao `userId` informado
+- deleta somente depois da validacao de pertencimento
 
 ## Exception
 
@@ -738,6 +774,7 @@ Ainda nao ha testes de:
 - soft delete de usuario
 - delete de cliente com pertencimento
 - seguranca/autenticacao
+- migrations Flyway ja existem, mas ainda nao ha testes especificos para elas
 
 ## Current Implementation Status
 
@@ -759,6 +796,7 @@ Implementado:
 - perfis `dev` e `test`
 - PostgreSQL no desenvolvimento
 - H2 para teste
+- migrations Flyway com schema inicial e seed no perfil `dev`
 - constraint unica parcial para agendamento por usuario/data/horario inicial
 - `pom.xml` limpo, sem dependencias nao usadas como Data REST, GraphQL,
   WebClient, RestClient, JDBC e Spring AI
@@ -767,7 +805,6 @@ Ainda pendente:
 - `PasswordEncoder`
 - autenticacao e autorizacao reais
 - JWT
-- migrations Flyway
 - testes de regra de negocio
 - configuracao de producao
 - documentacao README alinhada ao estado real do codigo
@@ -777,9 +814,11 @@ Ainda pendente:
 Ordem recomendada para continuar:
 
 1. Criar testes dos services, principalmente regras de negocio.
-2. Adicionar `PasswordEncoder`.
-3. Preparar fluxo de autenticacao.
-4. Implementar JWT somente depois que o restante estiver estavel.
+2. Revisar se services precisam de algum ajuste fino de excecoes, mantendo
+   tratamento centralizado no `GlobalExceptionHandler`.
+3. Adicionar `PasswordEncoder`.
+4. Preparar fluxo de autenticacao.
+5. Implementar JWT somente depois que o restante estiver estavel.
 
 Organizacao sugerida:
 
@@ -850,6 +889,9 @@ Sugestao educativa:
 14. Ao trabalhar com agendamentos, respeitar a regra de que horarios encostados sao conflito.
 15. Ao trabalhar com update de agendamento, lembrar que ele altera somente `endTime` e `service`.
 16. Ao sugerir delete de appointment, preferir adicionar `userId` para validar pertencimento.
-17. Ao sugerir testes, comecar pelos services, especialmente `AppointmentServiceImpl`.
-18. JWT deve ficar para depois de DTOs, mappers, controllers, exception handler e testes basicos.
-19. Nao espalhar `try/catch` pelos controllers; centralizar tratamento com `@RestControllerAdvice`.
+17. Flyway ja esta ativo no perfil `dev`; novas alteracoes de banco devem ser
+    feitas por novas migrations versionadas.
+18. Ao sugerir testes, comecar pelos services, especialmente `AppointmentServiceImpl`.
+19. JWT deve ficar para depois de DTOs, mappers, controllers, exception handler,
+    migrations e testes basicos.
+20. Nao espalhar `try/catch` pelos controllers; centralizar tratamento com `@RestControllerAdvice`.

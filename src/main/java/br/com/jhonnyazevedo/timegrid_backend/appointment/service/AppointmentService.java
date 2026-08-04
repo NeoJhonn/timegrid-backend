@@ -14,5 +14,5 @@ public interface AppointmentService {
 
     List<Appointment> listAppointmentsByDate(UUID userId, LocalDate date);
 
-    void deleteAppointment(UUID id);
+    void deleteAppointment(UUID userId, UUID appointmentId);
 }
