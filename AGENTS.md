@@ -8,7 +8,7 @@ repositories, services, regras de negocio, depois DTOs, mappers,
 controllers, tratamento global de excecoes, testes e, por ultimo,
 autenticacao/JWT.
 
-Atualizado em: 2026-08-04.
+Atualizado em: 2026-09-06.
 
 ## Current Workspace
 
@@ -70,7 +70,7 @@ Main folders:
 Ainda nao existem:
 - autenticacao JWT real
 - `PasswordEncoder`
-- testes especificos de services/repositories
+- testes especificos de controllers/repositories
 
 ## Configuration
 
@@ -132,6 +132,13 @@ Dependencias mantidas:
 - Lombok
 - Devtools
 - starters de teste relacionados a Web MVC, JPA, Security, Validation e Flyway
+
+Configuracao de teste no Maven:
+- `maven-surefire-plugin` configurado com Mockito como `javaagent`
+- Lombok declarado explicitamente na dependencia e no `annotationProcessorPaths`
+  usando `${lombok.version}`
+- ajuste feito em 2026-09-06 para remover warning do Mockito sobre self-attach
+  e estabilizar processamento do Lombok no IntelliJ
 
 Dependencias removidas por nao estarem em uso:
 - Spring Data JDBC
@@ -529,8 +536,8 @@ Metodos:
 - `List<AppointmentResponse> toResponseList(List<Appointment> appointments)`
 
 Build verificado:
-- `mvn test` executado em 2026-06-12 com sucesso.
-- Resultado: `BUILD SUCCESS`, `Tests run: 1, Failures: 0, Errors: 0`.
+- `mvn test` executado em 2026-09-06 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 29, Failures: 0, Errors: 0`.
 
 ## Controllers REST
 
@@ -607,8 +614,8 @@ Observacoes:
   de deletar.
 
 Build verificado:
-- `mvn test` executado em 2026-08-04 com sucesso.
-- Resultado: `BUILD SUCCESS`, `Tests run: 1, Failures: 0, Errors: 0`.
+- `mvn test` executado em 2026-09-06 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 29, Failures: 0, Errors: 0`.
 
 ## Exception Handling
 
@@ -639,8 +646,8 @@ Formato atual:
   `Nao existe endpoint para este caminho`
 
 Build verificado:
-- `mvn test` executado em 2026-07-21 com sucesso.
-- Resultado: `BUILD SUCCESS`, `Tests run: 1, Failures: 0, Errors: 0`.
+- `mvn test` executado em 2026-09-06 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 29, Failures: 0, Errors: 0`.
 
 ## Services
 
@@ -759,20 +766,67 @@ Tratamento atual:
 
 ## Tests
 
-Existe apenas:
-`TimegridBackendApplicationTests`
+Testes unitarios de services criados em 2026-09-06 com JUnit 5 e Mockito.
 
-Teste atual:
+Teste de contexto:
 - `contextLoads()`
 
+Arquivos:
+- `appointment.service.AppointmentServiceImplTest`
+- `client.service.ClientServiceImplTest`
+- `user.service.UserServiceImplTest`
+- `TimegridBackendApplicationTests`
+
+Padrao adotado nos testes de service:
+- `@ExtendWith(MockitoExtension.class)`
+- repositories mockados com `@Mock`
+- service testado com `@InjectMocks`
+- sem `@SpringBootTest` nos testes unitarios de service
+- sem conexao com banco real nos testes unitarios de service
+
+`AppointmentServiceImplTest` cobre:
+- criacao de agendamento com sucesso
+- bloqueio de data passada
+- bloqueio de `startTime` maior que `endTime`
+- bloqueio de cliente que nao pertence ao usuario
+- bloqueio de conflito de horario
+- update alterando somente `endTime` e `service`
+- delete bloqueando agendamento de outro usuario
+
+`ClientServiceImplTest` cobre:
+- criacao de cliente com sucesso
+- bloqueio quando usuario nao existe
+- bloqueio de telefone duplicado na criacao
+- listagem de clientes por usuario
+- busca validando pertencimento
+- bloqueio de cliente de outro usuario
+- update de nome e telefone com sucesso
+- bloqueio de telefone duplicado no update
+- delete validando pertencimento
+
+`UserServiceImplTest` cobre:
+- criacao de usuario com sucesso
+- bloqueio de email duplicado
+- bloqueio de username duplicado
+- busca por ID
+- bloqueio de usuario inexistente
+- listagem somente de usuarios ativos
+- update com sucesso
+- bloqueio de username vazio no update
+- bloqueio de email duplicado no update
+- bloqueio de username duplicado no update
+- soft delete com `active=false`
+- `setActive` alterando status
+
+Build verificado:
+- `mvn test` executado em 2026-09-06 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 29, Failures: 0, Errors: 0`.
+- Testes tambem foram rodados pelo usuario no IntelliJ com sucesso.
+
 Ainda nao ha testes de:
-- services
 - repositories
-- conflito de horario
-- horarios encostados como conflito
-- cliente que nao pertence ao usuario
-- soft delete de usuario
-- delete de cliente com pertencimento
+- controllers
+- `GlobalExceptionHandler`
 - seguranca/autenticacao
 - migrations Flyway ja existem, mas ainda nao ha testes especificos para elas
 
@@ -797,6 +851,7 @@ Implementado:
 - PostgreSQL no desenvolvimento
 - H2 para teste
 - migrations Flyway com schema inicial e seed no perfil `dev`
+- testes unitarios dos services principais com JUnit 5 e Mockito
 - constraint unica parcial para agendamento por usuario/data/horario inicial
 - `pom.xml` limpo, sem dependencias nao usadas como Data REST, GraphQL,
   WebClient, RestClient, JDBC e Spring AI
@@ -805,7 +860,8 @@ Ainda pendente:
 - `PasswordEncoder`
 - autenticacao e autorizacao reais
 - JWT
-- testes de regra de negocio
+- testes de controllers
+- testes de repositories, se forem necessarios
 - configuracao de producao
 - documentacao README alinhada ao estado real do codigo
 
@@ -813,12 +869,12 @@ Ainda pendente:
 
 Ordem recomendada para continuar:
 
-1. Criar testes dos services, principalmente regras de negocio.
-2. Revisar se services precisam de algum ajuste fino de excecoes, mantendo
-   tratamento centralizado no `GlobalExceptionHandler`.
-3. Adicionar `PasswordEncoder`.
-4. Preparar fluxo de autenticacao.
-5. Implementar JWT somente depois que o restante estiver estavel.
+1. Criar testes dos controllers, comecando por `UserControllerTest`.
+2. Testar validacoes dos DTOs e respostas padronizadas do `GlobalExceptionHandler`.
+3. Revisar se services precisam de algum ajuste fino revelado pelos testes.
+4. Adicionar `PasswordEncoder`.
+5. Preparar fluxo de autenticacao.
+6. Implementar JWT somente depois que o restante estiver estavel.
 
 Organizacao sugerida:
 
@@ -867,9 +923,9 @@ Banco
 ```
 
 Sugestao educativa:
-- proxima aula deve iniciar testes pelos services
-- comecar por `AppointmentServiceImpl`, pois concentra conflito de horarios,
-  data passada e pertencimento de cliente
+- proxima aula deve iniciar testes dos controllers
+- comecar por `UserControllerTest`, pois e o controller mais simples e ajuda a
+  estabelecer o padrao para `ClientControllerTest` e `AppointmentControllerTest`
 
 ## Development Rules For Future Agents
 
@@ -891,7 +947,8 @@ Sugestao educativa:
 16. Ao sugerir delete de appointment, preferir adicionar `userId` para validar pertencimento.
 17. Flyway ja esta ativo no perfil `dev`; novas alteracoes de banco devem ser
     feitas por novas migrations versionadas.
-18. Ao sugerir testes, comecar pelos services, especialmente `AppointmentServiceImpl`.
+18. Testes unitarios dos services ja foram criados; proximos testes devem focar
+    controllers e tratamento global de excecoes.
 19. JWT deve ficar para depois de DTOs, mappers, controllers, exception handler,
     migrations e testes basicos.
 20. Nao espalhar `try/catch` pelos controllers; centralizar tratamento com `@RestControllerAdvice`.
