@@ -8,7 +8,7 @@ repositories, services, regras de negocio, depois DTOs, mappers,
 controllers, tratamento global de excecoes, testes e, por ultimo,
 autenticacao/JWT.
 
-Atualizado em: 2026-09-06.
+Atualizado em: 2026-09-15.
 
 ## Current Workspace
 
@@ -70,7 +70,7 @@ Main folders:
 Ainda nao existem:
 - autenticacao JWT real
 - `PasswordEncoder`
-- testes especificos de controllers/repositories
+- testes especificos de repositories
 
 ## Configuration
 
@@ -767,14 +767,20 @@ Tratamento atual:
 ## Tests
 
 Testes unitarios de services criados em 2026-09-06 com JUnit 5 e Mockito.
+Testes de controllers e do tratamento global de excecoes criados em
+2026-09-15 com MockMvc standalone.
 
 Teste de contexto:
 - `contextLoads()`
 
 Arquivos:
 - `appointment.service.AppointmentServiceImplTest`
+- `appointment.controller.AppointmentControllerTest`
 - `client.service.ClientServiceImplTest`
+- `client.controller.ClientControllerTest`
 - `user.service.UserServiceImplTest`
+- `user.controller.UserControllerTest`
+- `exception.GlobalExceptionHandlerTest`
 - `TimegridBackendApplicationTests`
 
 Padrao adotado nos testes de service:
@@ -783,6 +789,14 @@ Padrao adotado nos testes de service:
 - service testado com `@InjectMocks`
 - sem `@SpringBootTest` nos testes unitarios de service
 - sem conexao com banco real nos testes unitarios de service
+
+Padrao adotado nos testes de controller:
+- `@ExtendWith(MockitoExtension.class)`
+- `MockMvcBuilders.standaloneSetup(...)`
+- services e mappers mockados com `@Mock`
+- `GlobalExceptionHandler` registrado com `.setControllerAdvice(...)`
+- sem subir contexto Spring completo
+- sem conexao com banco real
 
 `AppointmentServiceImplTest` cobre:
 - criacao de agendamento com sucesso
@@ -818,15 +832,49 @@ Padrao adotado nos testes de service:
 - soft delete com `active=false`
 - `setActive` alterando status
 
+`UserControllerTest` cobre:
+- criacao de usuario com status `201 Created`
+- validacao de request invalido com status `400`
+- busca por ID com sucesso
+- `BusinessException` padronizada pelo `GlobalExceptionHandler`
+- listagem de usuarios
+- update de usuario
+- delete com status `204 No Content`
+- alteracao de status ativo/inativo com `PATCH`
+
+`ClientControllerTest` cobre:
+- criacao de cliente com status `201 Created`
+- validacao de request invalido com status `400`
+- listagem de clientes por usuario
+- busca de cliente por ID validando rota com `userId`
+- `BusinessException` padronizada pelo `GlobalExceptionHandler`
+- update de cliente
+- delete com status `204 No Content`
+
+`AppointmentControllerTest` cobre:
+- criacao de agendamento com status `201 Created`
+- validacao de request invalido com status `400`
+- listagem de agendamentos por data
+- data invalida em query param com status `400`
+- update respeitando `AppointmentUpdateRequest`
+- `BusinessException` padronizada pelo `GlobalExceptionHandler`
+- delete com status `204 No Content`
+
+`GlobalExceptionHandlerTest` cobre:
+- `BusinessException` retornando `400 Bad Request`
+- `MethodArgumentNotValidException` retornando `400 Bad Request` com mapa `fields`
+- `MethodArgumentTypeMismatchException` retornando `400 Bad Request`
+- `HttpMessageNotReadableException` retornando `400 Bad Request`
+- `NoResourceFoundException` retornando `404 Not Found`
+- `Exception` generica retornando `500 Internal Server Error`
+
 Build verificado:
-- `mvn test` executado em 2026-09-06 com sucesso.
-- Resultado: `BUILD SUCCESS`, `Tests run: 29, Failures: 0, Errors: 0`.
+- `mvn test` executado em 2026-09-15 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 57, Failures: 0, Errors: 0`.
 - Testes tambem foram rodados pelo usuario no IntelliJ com sucesso.
 
 Ainda nao ha testes de:
 - repositories
-- controllers
-- `GlobalExceptionHandler`
 - seguranca/autenticacao
 - migrations Flyway ja existem, mas ainda nao ha testes especificos para elas
 
@@ -852,6 +900,8 @@ Implementado:
 - H2 para teste
 - migrations Flyway com schema inicial e seed no perfil `dev`
 - testes unitarios dos services principais com JUnit 5 e Mockito
+- testes dos controllers REST principais com MockMvc standalone
+- testes do `GlobalExceptionHandler` para respostas de erro padronizadas
 - constraint unica parcial para agendamento por usuario/data/horario inicial
 - `pom.xml` limpo, sem dependencias nao usadas como Data REST, GraphQL,
   WebClient, RestClient, JDBC e Spring AI
@@ -860,7 +910,6 @@ Ainda pendente:
 - `PasswordEncoder`
 - autenticacao e autorizacao reais
 - JWT
-- testes de controllers
 - testes de repositories, se forem necessarios
 - configuracao de producao
 - documentacao README alinhada ao estado real do codigo
@@ -869,12 +918,12 @@ Ainda pendente:
 
 Ordem recomendada para continuar:
 
-1. Criar testes dos controllers, comecando por `UserControllerTest`.
-2. Testar validacoes dos DTOs e respostas padronizadas do `GlobalExceptionHandler`.
-3. Revisar se services precisam de algum ajuste fino revelado pelos testes.
-4. Adicionar `PasswordEncoder`.
-5. Preparar fluxo de autenticacao.
-6. Implementar JWT somente depois que o restante estiver estavel.
+1. Adicionar `PasswordEncoder`.
+2. Alterar criacao e update de usuario para salvar senha criptografada.
+3. Ajustar testes de `UserServiceImpl` para validar uso do `PasswordEncoder`.
+4. Preparar fluxo de autenticacao.
+5. Implementar JWT somente depois que senha criptografada e autenticacao basica estiverem estaveis.
+6. Avaliar testes de repositories somente se alguma regra passar a depender de comportamento real do banco.
 
 Organizacao sugerida:
 
