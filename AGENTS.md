@@ -976,6 +976,7 @@ Implementado:
   WebClient, RestClient, JDBC e Spring AI
 
 Ainda pendente:
+- refresh token com validade de 24 horas
 - testes de repositories, se forem necessarios
 - configuracao de producao
 - documentacao README alinhada ao estado real do codigo
@@ -984,11 +985,19 @@ Ainda pendente:
 
 Ordem recomendada para continuar:
 
-1. Revisar autorizacao por role (`ADMIN` e `MANAGER`) quando a regra de acesso for definida.
-2. Ajustar mensagens/status de autenticacao se desejar diferenciar `401` e `403`.
-3. Externalizar configuracoes sensiveis para ambiente antes de producao.
-4. Atualizar o README para refletir o estado real do projeto.
-5. Avaliar testes de repositories somente se alguma regra passar a depender de comportamento real do banco.
+1. Implementar refresh token.
+2. Manter access token com validade de 60 minutos.
+3. Criar refresh token com validade de 24 horas (`1440` minutos).
+4. Criar endpoint `POST /auth/refresh`.
+5. Ajustar `LoginResponse` para retornar `accessToken` e `refreshToken`.
+6. Criar `RefreshTokenRequest` recebendo `refreshToken`.
+7. Ajustar `JwtService` para gerar e validar access token e refresh token.
+8. Adicionar testes para login retornando dois tokens e refresh gerando novo access token.
+9. Revisar autorizacao por role (`ADMIN` e `MANAGER`) quando a regra de acesso for definida.
+10. Configurar Swagger/OpenAPI com suporte a Bearer JWT.
+11. Configurar CORS para o futuro frontend Angular.
+12. Externalizar configuracoes sensiveis para ambiente antes de producao.
+13. Atualizar o README para refletir o estado real do projeto.
 
 Organizacao sugerida:
 
@@ -1037,8 +1046,8 @@ Banco
 ```
 
 Sugestao educativa:
-- proxima aula pode revisar o fluxo JWT ponta a ponta e introduzir autorizacao por roles.
-- tambem pode atualizar o README para alinhar a documentacao publica ao estado real do codigo.
+- proxima aula pode implementar refresh token para manter o usuario logado por ate 24 horas.
+- depois do refresh token, fechar a API com Swagger/OpenAPI, CORS para o frontend Angular e README atualizado.
 
 ## Development Rules For Future Agents
 
