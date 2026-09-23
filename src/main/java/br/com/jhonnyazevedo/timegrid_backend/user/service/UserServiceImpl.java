@@ -4,6 +4,7 @@ import br.com.jhonnyazevedo.timegrid_backend.exception.BusinessException;
 import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import br.com.jhonnyazevedo.timegrid_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public User createUser(User user) {
@@ -27,6 +29,7 @@ public class UserServiceImpl implements UserService {
         }
 
         user.setActive(true);
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
 
         return userRepository.save(user);
     }
@@ -69,7 +72,7 @@ public class UserServiceImpl implements UserService {
 
         existing.setUsername(user.getUsername());
         existing.setEmail(user.getEmail());
-        existing.setPassword(user.getPassword());
+        existing.setPassword(passwordEncoder.encode(user.getPassword()));
         existing.setRole(user.getRole());
 
         return userRepository.save(existing);

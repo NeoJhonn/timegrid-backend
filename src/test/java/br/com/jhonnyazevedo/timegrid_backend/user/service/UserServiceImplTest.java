@@ -10,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +29,9 @@ class UserServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -54,11 +58,14 @@ class UserServiceImplTest {
 
         when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
         when(userRepository.existsByUsername(request.getUsername())).thenReturn(false);
+        when(passwordEncoder.encode("123456")).thenReturn("encoded-password");
         when(userRepository.save(request)).thenReturn(request);
 
         User savedUser = userService.createUser(request);
 
         assertEquals(true, savedUser.getActive());
+        assertEquals("encoded-password", savedUser.getPassword());
+        verify(passwordEncoder).encode("123456");
         verify(userRepository).save(request);
     }
 
@@ -133,14 +140,16 @@ class UserServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.empty());
         when(userRepository.findByUsername(request.getUsername())).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("654321")).thenReturn("encoded-updated-password");
         when(userRepository.save(user)).thenReturn(user);
 
         User updatedUser = userService.updateUser(userId, request);
 
         assertEquals("john_updated", updatedUser.getUsername());
         assertEquals("john.updated@timegrid.test", updatedUser.getEmail());
-        assertEquals("654321", updatedUser.getPassword());
+        assertEquals("encoded-updated-password", updatedUser.getPassword());
         assertEquals(UserRole.ADMIN, updatedUser.getRole());
+        verify(passwordEncoder).encode("654321");
         verify(userRepository).save(user);
     }
 

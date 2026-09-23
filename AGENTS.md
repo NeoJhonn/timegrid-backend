@@ -8,7 +8,7 @@ repositories, services, regras de negocio, depois DTOs, mappers,
 controllers, tratamento global de excecoes, testes e, por ultimo,
 autenticacao/JWT.
 
-Atualizado em: 2026-09-15.
+Atualizado em: 2026-09-22.
 
 ## Current Workspace
 
@@ -68,8 +68,6 @@ Main folders:
 - `exception`
 
 Ainda nao existem:
-- autenticacao JWT real
-- `PasswordEncoder`
 - testes especificos de repositories
 
 ## Configuration
@@ -106,14 +104,19 @@ Classe:
 Estado atual:
 - CSRF desabilitado
 - frame options desabilitado para permitir H2 console
+- `formLogin` e `httpBasic` desabilitados
+- sessao configurada como stateless
 - `/h2-console/**` liberado
-- todas as demais rotas tambem estao liberadas com `anyRequest().permitAll()`
+- `POST /auth/login` liberado
+- `POST /users` liberado para cadastro
+- demais rotas exigem JWT no header `Authorization: Bearer <token>`
 
 Importante:
-- Spring Security esta configurado, mas ainda nao existe autenticacao real.
-- JWT deve ficar para uma etapa posterior, depois de DTOs, controllers,
-  exception handler, testes e senha criptografada.
-- Antes de qualquer login real, implementar `PasswordEncoder`.
+- `PasswordEncoder` foi implementado com `BCryptPasswordEncoder`.
+- Login real foi implementado em `/auth/login` usando email e senha.
+- JWT foi implementado com `JwtService` e `JwtAuthenticationFilter`.
+- O token guarda o email no `sub`, o `userId`, a `role`, `iat` e `exp`.
+- O login foi testado manualmente no Insomnia com sucesso.
 
 ## POM / Dependencies
 
@@ -176,17 +179,20 @@ Migrations atuais:
   - adiciona 3 clientes ficticios
   - adiciona 6 agendamentos ficticios
   - usa IDs fixos para facilitar testes manuais de endpoints
+- `V3__encode_seed_user_passwords.sql`
+  - atualiza senhas seedadas em texto puro (`123456`) para hash BCrypt
+  - permite login manual com a senha original `123456`
 
 Estado atual:
 - Flyway ja aplicou as migrations no PostgreSQL local `timegridDB`
-- schema atual no dev: versao `2`
+- schema atual no dev: versao `3`
 - Hibernate no perfil `dev` esta em `validate`, entao ele apenas valida o schema
   criado pelo Flyway
 - o seed foi confirmado pelo usuario no DBeaver
 
 Observacoes:
-- O seed ainda usa senhas em texto puro (`123456`) porque `PasswordEncoder`
-  ainda nao foi implementado.
+- O seed original usava senhas em texto puro, mas a `V3` converte esses valores
+  para BCrypt.
 - Para producao, revisar credenciais, seed e estrategia de migrations antes do
   primeiro deploy real.
 
@@ -764,11 +770,52 @@ Tratamento atual:
 - `BusinessException` e capturada por `GlobalExceptionHandler`
 - resposta padronizada com status `400`
 
+## Authentication And JWT
+
+Autenticacao e JWT implementados em 2026-09-22.
+
+Arquivos principais:
+- `auth.dto.LoginRequest`
+- `auth.dto.LoginResponse`
+- `auth.controller.AuthController`
+- `auth.service.AuthService`
+- `auth.service.AuthServiceImpl`
+- `auth.service.JwtService`
+- `config.JwtAuthenticationFilter`
+- `config.SecurityConfig`
+
+Fluxo atual:
+- `POST /auth/login` recebe `email` e `password`
+- o usuario e buscado por email
+- senha e validada com `passwordEncoder.matches(...)`
+- usuario inativo nao consegue logar
+- login valido retorna um JWT no campo `token`
+- rotas protegidas exigem `Authorization: Bearer <token>`
+
+Endpoints publicos:
+- `POST /auth/login`
+- `POST /users`
+- `/h2-console/**`
+
+Endpoints protegidos:
+- demais endpoints de users, clients e appointments
+
+Configuracao:
+- `timegrid.jwt.secret=${JWT_SECRET:change-this-secret-before-production-timegrid-jwt-secret}`
+- `timegrid.jwt.expiration-minutes=${JWT_EXPIRATION_MINUTES:60}`
+
+Observacoes:
+- Login manual foi testado no Insomnia com sucesso.
+- Acesso a rotas protegidas sem token foi negado.
+- Acesso a rotas protegidas com token Bearer valido funcionou.
+- Em producao, definir `JWT_SECRET` por variavel de ambiente com valor forte.
+
 ## Tests
 
 Testes unitarios de services criados em 2026-09-06 com JUnit 5 e Mockito.
 Testes de controllers e do tratamento global de excecoes criados em
 2026-09-15 com MockMvc standalone.
+Testes de autenticacao e JWT criados em 2026-09-22.
 
 Teste de contexto:
 - `contextLoads()`
@@ -780,6 +827,9 @@ Arquivos:
 - `client.controller.ClientControllerTest`
 - `user.service.UserServiceImplTest`
 - `user.controller.UserControllerTest`
+- `auth.service.AuthServiceImplTest`
+- `auth.service.JwtServiceTest`
+- `auth.controller.AuthControllerTest`
 - `exception.GlobalExceptionHandlerTest`
 - `TimegridBackendApplicationTests`
 
@@ -868,14 +918,28 @@ Padrao adotado nos testes de controller:
 - `NoResourceFoundException` retornando `404 Not Found`
 - `Exception` generica retornando `500 Internal Server Error`
 
+`AuthServiceImplTest` cobre:
+- login com sucesso retornando token
+- bloqueio quando email nao existe
+- bloqueio quando usuario esta inativo
+- bloqueio quando senha nao confere
+
+`AuthControllerTest` cobre:
+- login com sucesso retornando `token`
+- validacao de request invalido com status `400`
+- `BusinessException` padronizada pelo `GlobalExceptionHandler`
+
+`JwtServiceTest` cobre:
+- geracao de token com email do usuario como subject
+- token invalido retornando `Optional.empty()`
+
 Build verificado:
-- `mvn test` executado em 2026-09-15 com sucesso.
-- Resultado: `BUILD SUCCESS`, `Tests run: 57, Failures: 0, Errors: 0`.
+- `mvn test` executado em 2026-09-22 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 66, Failures: 0, Errors: 0`.
 - Testes tambem foram rodados pelo usuario no IntelliJ com sucesso.
 
 Ainda nao ha testes de:
 - repositories
-- seguranca/autenticacao
 - migrations Flyway ja existem, mas ainda nao ha testes especificos para elas
 
 ## Current Implementation Status
@@ -894,22 +958,24 @@ Implementado:
 - soft delete de usuario
 - delete de cliente com validacao de pertencimento
 - listagem de usuarios ativos
-- configuracao basica de seguranca liberando tudo
+- configuracao de seguranca stateless com JWT
+- `PasswordEncoder` com BCrypt
+- login em `/auth/login`
+- filtro JWT para autenticar requisicoes com Bearer token
+- `UserDetailsService` baseado em `UserRepository`
 - perfis `dev` e `test`
 - PostgreSQL no desenvolvimento
 - H2 para teste
-- migrations Flyway com schema inicial e seed no perfil `dev`
+- migrations Flyway com schema inicial, seed e conversao de senhas seedadas para BCrypt
 - testes unitarios dos services principais com JUnit 5 e Mockito
 - testes dos controllers REST principais com MockMvc standalone
 - testes do `GlobalExceptionHandler` para respostas de erro padronizadas
+- testes de autenticacao e JWT
 - constraint unica parcial para agendamento por usuario/data/horario inicial
 - `pom.xml` limpo, sem dependencias nao usadas como Data REST, GraphQL,
   WebClient, RestClient, JDBC e Spring AI
 
 Ainda pendente:
-- `PasswordEncoder`
-- autenticacao e autorizacao reais
-- JWT
 - testes de repositories, se forem necessarios
 - configuracao de producao
 - documentacao README alinhada ao estado real do codigo
@@ -918,12 +984,11 @@ Ainda pendente:
 
 Ordem recomendada para continuar:
 
-1. Adicionar `PasswordEncoder`.
-2. Alterar criacao e update de usuario para salvar senha criptografada.
-3. Ajustar testes de `UserServiceImpl` para validar uso do `PasswordEncoder`.
-4. Preparar fluxo de autenticacao.
-5. Implementar JWT somente depois que senha criptografada e autenticacao basica estiverem estaveis.
-6. Avaliar testes de repositories somente se alguma regra passar a depender de comportamento real do banco.
+1. Revisar autorizacao por role (`ADMIN` e `MANAGER`) quando a regra de acesso for definida.
+2. Ajustar mensagens/status de autenticacao se desejar diferenciar `401` e `403`.
+3. Externalizar configuracoes sensiveis para ambiente antes de producao.
+4. Atualizar o README para refletir o estado real do projeto.
+5. Avaliar testes de repositories somente se alguma regra passar a depender de comportamento real do banco.
 
 Organizacao sugerida:
 
@@ -972,9 +1037,8 @@ Banco
 ```
 
 Sugestao educativa:
-- proxima aula deve iniciar testes dos controllers
-- comecar por `UserControllerTest`, pois e o controller mais simples e ajuda a
-  estabelecer o padrao para `ClientControllerTest` e `AppointmentControllerTest`
+- proxima aula pode revisar o fluxo JWT ponta a ponta e introduzir autorizacao por roles.
+- tambem pode atualizar o README para alinhar a documentacao publica ao estado real do codigo.
 
 ## Development Rules For Future Agents
 

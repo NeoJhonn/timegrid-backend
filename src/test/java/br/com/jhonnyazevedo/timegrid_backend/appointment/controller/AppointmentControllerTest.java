@@ -73,7 +73,7 @@ class AppointmentControllerTest {
         appointment.setUser(user);
         appointment.setClient(client);
         appointment.setService("Corte de cabelo");
-        appointment.setAppointmentDate(LocalDate.of(2026, 9, 20));
+        appointment.setAppointmentDate(LocalDate.of(2026, 10, 20));
         appointment.setStartTime(TimeGrid.T0900);
         appointment.setEndTime(TimeGrid.T0930);
 
@@ -83,7 +83,7 @@ class AppointmentControllerTest {
                 clientId,
                 "Carlos Silva",
                 "Corte de cabelo",
-                LocalDate.of(2026, 9, 20),
+                LocalDate.of(2026, 10, 20),
                 TimeGrid.T0900,
                 TimeGrid.T0930,
                 null
@@ -96,7 +96,7 @@ class AppointmentControllerTest {
                 {
                   "clientId": "%s",
                   "service": "Corte de cabelo",
-                  "appointmentDate": "2026-09-20",
+                  "appointmentDate": "2026-10-20",
                   "startTime": "T0900",
                   "endTime": "T0930"
                 }
@@ -142,16 +142,16 @@ class AppointmentControllerTest {
 
     @Test
     void listAppointmentsByDate_shouldReturnAppointments() throws Exception {
-        LocalDate date = LocalDate.of(2026, 9, 20);
+        LocalDate date = LocalDate.of(2026, 10, 20);
 
         when(appointmentService.listAppointmentsByDate(userId, date)).thenReturn(List.of(appointment));
         when(appointmentMapper.toResponseList(List.of(appointment))).thenReturn(List.of(appointmentResponse));
 
         mockMvc.perform(get("/users/{userId}/appointments", userId)
-                        .param("date", "2026-09-20"))
+                        .param("date", "2026-10-20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(appointmentId.toString()))
-                .andExpect(jsonPath("$[0].appointmentDate").value("2026-09-20"));
+                .andExpect(jsonPath("$[0].appointmentDate").value("2026-10-20"));
     }
 
     @Test
