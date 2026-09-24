@@ -5,6 +5,8 @@ import br.com.jhonnyazevedo.timegrid_backend.user.dto.UserResponse;
 import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import br.com.jhonnyazevedo.timegrid_backend.user.mapper.UserMapper;
 import br.com.jhonnyazevedo.timegrid_backend.user.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,12 +28,14 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
+@Tag(name = "Users", description = "Endpoints para gerenciamento de usuarios")
 public class UserController {
 
     private final UserService userService;
     private final UserMapper userMapper;
 
     @PostMapping
+    @Operation(summary = "Cria usuario", description = "Cria um novo usuario. Endpoint restrito a usuarios com role MANAGER.")
     public ResponseEntity<UserResponse> createUser(@RequestBody @Valid UserRequest request) {
         User user = userMapper.toEntity(request);
         User createdUser = userService.createUser(user);
@@ -39,18 +43,21 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Busca usuario por ID", description = "Retorna os dados de um usuario pelo seu identificador.")
     public ResponseEntity<UserResponse> findById(@PathVariable UUID id) {
         User user = userService.findById(id);
         return ResponseEntity.ok(userMapper.toResponse(user));
     }
 
     @GetMapping
+    @Operation(summary = "Lista usuarios ativos", description = "Retorna a lista de usuarios ativos cadastrados no sistema.")
     public ResponseEntity<List<UserResponse>> listUsers() {
         List<User> users = userService.listUsers();
         return ResponseEntity.ok(userMapper.toResponseList(users));
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Atualiza usuario", description = "Atualiza username, email, senha e role de um usuario existente.")
     public ResponseEntity<UserResponse> updateUser(
             @PathVariable UUID id,
             @RequestBody @Valid UserRequest request
@@ -61,12 +68,14 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Desativa usuario", description = "Realiza soft delete do usuario, alterando o campo active para false.")
     public ResponseEntity<Void> deleteUser(@PathVariable UUID id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/active")
+    @Operation(summary = "Altera status do usuario", description = "Ativa ou desativa um usuario pelo parametro active.")
     public ResponseEntity<Void> setActive(
             @PathVariable UUID id,
             @RequestParam Boolean active

@@ -6,6 +6,8 @@ import br.com.jhonnyazevedo.timegrid_backend.appointment.dto.AppointmentUpdateRe
 import br.com.jhonnyazevedo.timegrid_backend.appointment.entity.Appointment;
 import br.com.jhonnyazevedo.timegrid_backend.appointment.mapper.AppointmentMapper;
 import br.com.jhonnyazevedo.timegrid_backend.appointment.service.AppointmentService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -28,12 +30,14 @@ import java.util.UUID;
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
+@Tag(name = "Appointments", description = "Endpoints para gerenciamento de agendamentos")
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
     private final AppointmentMapper appointmentMapper;
 
     @PostMapping("/users/{userId}/appointments")
+    @Operation(summary = "Cria agendamento", description = "Cria um agendamento para um cliente do usuario informado, validando data, horario e conflitos.")
     public ResponseEntity<AppointmentResponse> createAppointment(
             @PathVariable UUID userId,
             @RequestBody @Valid AppointmentRequest request
@@ -50,6 +54,7 @@ public class AppointmentController {
     }
 
     @GetMapping("/users/{userId}/appointments")
+    @Operation(summary = "Lista agendamentos por data", description = "Retorna os agendamentos do usuario informado para uma data especifica.")
     public ResponseEntity<List<AppointmentResponse>> listAppointmentsByDate(
             @PathVariable UUID userId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
@@ -59,6 +64,7 @@ public class AppointmentController {
     }
 
     @PutMapping("/users/{userId}/appointments/{appointmentId}")
+    @Operation(summary = "Atualiza agendamento", description = "Atualiza somente o servico e o horario final do agendamento.")
     public ResponseEntity<AppointmentResponse> updateAppointment(
             @PathVariable UUID userId,
             @PathVariable UUID appointmentId,
@@ -70,6 +76,7 @@ public class AppointmentController {
     }
 
     @DeleteMapping("/users/{userId}/appointments/{appointmentId}")
+    @Operation(summary = "Remove agendamento", description = "Remove um agendamento apos validar que ele pertence ao usuario informado.")
     public ResponseEntity<Void> deleteAppointment(
             @PathVariable UUID userId,
             @PathVariable UUID appointmentId

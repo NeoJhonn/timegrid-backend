@@ -8,7 +8,7 @@ repositories, services, regras de negocio, depois DTOs, mappers,
 controllers, tratamento global de excecoes, testes e, por ultimo,
 autenticacao/JWT.
 
-Atualizado em: 2026-09-22.
+Atualizado em: 2026-09-23.
 
 ## Current Workspace
 
@@ -106,17 +106,25 @@ Estado atual:
 - frame options desabilitado para permitir H2 console
 - `formLogin` e `httpBasic` desabilitados
 - sessao configurada como stateless
+- CORS configurado com origem padrao `http://localhost:4200`
 - `/h2-console/**` liberado
 - `POST /auth/login` liberado
-- `POST /users` liberado para cadastro
+- `POST /auth/refresh` liberado
+- Swagger/OpenAPI liberado em `/swagger-ui/**` e `/v3/api-docs/**`
+- `POST /users` restrito a usuarios com role `MANAGER`
 - demais rotas exigem JWT no header `Authorization: Bearer <token>`
 
 Importante:
 - `PasswordEncoder` foi implementado com `BCryptPasswordEncoder`.
 - Login real foi implementado em `/auth/login` usando email e senha.
 - JWT foi implementado com `JwtService` e `JwtAuthenticationFilter`.
-- O token guarda o email no `sub`, o `userId`, a `role`, `iat` e `exp`.
+- Access token e refresh token guardam o email no `sub`, o `userId`, a `role`,
+  `type`, `iat` e `exp`.
+- Access token expira em 60 minutos por padrao.
+- Refresh token expira em 24 horas por padrao e nao e renovado no refresh.
 - O login foi testado manualmente no Insomnia com sucesso.
+- `ADMIN` acessa rotas autenticadas, exceto criacao de usuario.
+- `MANAGER` e o super usuario/root e acessa todos os endpoints.
 
 ## POM / Dependencies
 
@@ -808,6 +816,8 @@ Observacoes:
 - Login manual foi testado no Insomnia com sucesso.
 - Acesso a rotas protegidas sem token foi negado.
 - Acesso a rotas protegidas com token Bearer valido funcionou.
+- `POST /auth/refresh` gera novo access token mantendo o mesmo refresh token
+  ate ele expirar.
 - Em producao, definir `JWT_SECRET` por variavel de ambiente com valor forte.
 
 ## Tests
@@ -816,6 +826,7 @@ Testes unitarios de services criados em 2026-09-06 com JUnit 5 e Mockito.
 Testes de controllers e do tratamento global de excecoes criados em
 2026-09-15 com MockMvc standalone.
 Testes de autenticacao e JWT criados em 2026-09-22.
+Testes de refresh token criados em 2026-09-23.
 
 Teste de contexto:
 - `contextLoads()`
@@ -919,23 +930,30 @@ Padrao adotado nos testes de controller:
 - `Exception` generica retornando `500 Internal Server Error`
 
 `AuthServiceImplTest` cobre:
-- login com sucesso retornando token
+- login com sucesso retornando access token e refresh token
 - bloqueio quando email nao existe
 - bloqueio quando usuario esta inativo
 - bloqueio quando senha nao confere
+- refresh com token valido retornando novo access token
+- bloqueio quando refresh token e invalido
+- bloqueio de refresh quando usuario esta inativo
 
 `AuthControllerTest` cobre:
-- login com sucesso retornando `token`
+- login com sucesso retornando `accessToken` e `refreshToken`
 - validacao de request invalido com status `400`
 - `BusinessException` padronizada pelo `GlobalExceptionHandler`
+- refresh com sucesso retornando novo access token
+- validacao de refresh request invalido com status `400`
 
 `JwtServiceTest` cobre:
-- geracao de token com email do usuario como subject
+- geracao de access token com email do usuario como subject
+- geracao de refresh token com email do usuario como subject
+- access token recusando refresh token
 - token invalido retornando `Optional.empty()`
 
 Build verificado:
-- `mvn test` executado em 2026-09-22 com sucesso.
-- Resultado: `BUILD SUCCESS`, `Tests run: 66, Failures: 0, Errors: 0`.
+- `mvn test` executado em 2026-09-23 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 73, Failures: 0, Errors: 0`.
 - Testes tambem foram rodados pelo usuario no IntelliJ com sucesso.
 
 Ainda nao ha testes de:
@@ -943,6 +961,10 @@ Ainda nao ha testes de:
 - migrations Flyway ja existem, mas ainda nao ha testes especificos para elas
 
 ## Current Implementation Status
+
+Estado geral:
+- API backend finalizada para a aula atual, com autenticacao, autorizacao,
+  refresh token, Swagger/OpenAPI, CORS, README e testes automatizados.
 
 Implementado:
 - entidades principais
@@ -961,7 +983,11 @@ Implementado:
 - configuracao de seguranca stateless com JWT
 - `PasswordEncoder` com BCrypt
 - login em `/auth/login`
+- refresh token em `/auth/refresh`
 - filtro JWT para autenticar requisicoes com Bearer token
+- autorizacao de criacao de usuario restrita a `MANAGER`
+- CORS configurado para o futuro frontend Angular
+- Swagger/OpenAPI configurado com esquema Bearer JWT
 - `UserDetailsService` baseado em `UserRepository`
 - perfis `dev` e `test`
 - PostgreSQL no desenvolvimento
@@ -971,33 +997,24 @@ Implementado:
 - testes dos controllers REST principais com MockMvc standalone
 - testes do `GlobalExceptionHandler` para respostas de erro padronizadas
 - testes de autenticacao e JWT
+- README atualizado para o estado atual da API
 - constraint unica parcial para agendamento por usuario/data/horario inicial
 - `pom.xml` limpo, sem dependencias nao usadas como Data REST, GraphQL,
   WebClient, RestClient, JDBC e Spring AI
 
 Ainda pendente:
-- refresh token com validade de 24 horas
 - testes de repositories, se forem necessarios
 - configuracao de producao
-- documentacao README alinhada ao estado real do codigo
+- validacao manual final do Swagger no navegador
 
 ## Recommended Next Path
 
 Ordem recomendada para continuar:
 
-1. Implementar refresh token.
-2. Manter access token com validade de 60 minutos.
-3. Criar refresh token com validade de 24 horas (`1440` minutos).
-4. Criar endpoint `POST /auth/refresh`.
-5. Ajustar `LoginResponse` para retornar `accessToken` e `refreshToken`.
-6. Criar `RefreshTokenRequest` recebendo `refreshToken`.
-7. Ajustar `JwtService` para gerar e validar access token e refresh token.
-8. Adicionar testes para login retornando dois tokens e refresh gerando novo access token.
-9. Revisar autorizacao por role (`ADMIN` e `MANAGER`) quando a regra de acesso for definida.
-10. Configurar Swagger/OpenAPI com suporte a Bearer JWT.
-11. Configurar CORS para o futuro frontend Angular.
-12. Externalizar configuracoes sensiveis para ambiente antes de producao.
-13. Atualizar o README para refletir o estado real do projeto.
+1. Rodar a aplicacao pelo IntelliJ e validar Swagger manualmente em `/swagger-ui/index.html`.
+2. Testar manualmente login, refresh token e rota `POST /users` com roles `ADMIN` e `MANAGER`.
+3. Externalizar configuracoes sensiveis para ambiente antes de producao.
+4. Avaliar testes de repositories somente se alguma regra passar a depender de comportamento real do banco.
 
 Organizacao sugerida:
 
@@ -1046,14 +1063,15 @@ Banco
 ```
 
 Sugestao educativa:
-- proxima aula pode implementar refresh token para manter o usuario logado por ate 24 horas.
-- depois do refresh token, fechar a API com Swagger/OpenAPI, CORS para o frontend Angular e README atualizado.
+- aula atual fecha a API backend com refresh token, roles, Swagger, CORS e README.
+- proxima etapa natural e iniciar o frontend em Angular com Tailwind.
 
 ## Development Rules For Future Agents
 
 1. Manter acesso somente leitura, salvo se o usuario pedir explicitamente para editar arquivos.
 2. Antes de propor mudancas, ler o codigo atual e respeitar a estrutura existente.
-3. Nao assumir que JWT ja existe.
+3. JWT ja existe e faz parte do fluxo atual da API; antes de alterar
+   autenticacao, ler `auth`, `config.SecurityConfig` e os testes relacionados.
 4. Nao prometer comportamento que ainda nao esta implementado.
 5. Priorizar melhorias incrementais e educativas, explicando o motivo das mudancas.
 6. Evitar refatoracoes grandes sem necessidade.
@@ -1063,14 +1081,16 @@ Sugestao educativa:
 10. Nao colocar regras de negocio complexas dentro das entidades.
 11. Usar `BusinessException` para regras de negocio ate existir tratamento global melhor.
 12. Ao sugerir endpoints, usar os services existentes em vez de acessar repositories diretamente nos controllers.
-13. Ao sugerir autenticacao, implementar senha criptografada antes de qualquer login real.
+13. Autenticacao real ja existe com senha BCrypt, access token e refresh token.
+    Manter esse fluxo ao propor ajustes.
 14. Ao trabalhar com agendamentos, respeitar a regra de que horarios encostados sao conflito.
 15. Ao trabalhar com update de agendamento, lembrar que ele altera somente `endTime` e `service`.
 16. Ao sugerir delete de appointment, preferir adicionar `userId` para validar pertencimento.
 17. Flyway ja esta ativo no perfil `dev`; novas alteracoes de banco devem ser
     feitas por novas migrations versionadas.
-18. Testes unitarios dos services ja foram criados; proximos testes devem focar
-    controllers e tratamento global de excecoes.
-19. JWT deve ficar para depois de DTOs, mappers, controllers, exception handler,
-    migrations e testes basicos.
+18. Testes de services, controllers, exception handler, autenticacao e JWT ja
+    existem; novos testes devem acompanhar mudancas reais de comportamento.
+19. A API backend esta fechada para a etapa atual; proximas mudancas devem ser
+    incrementais, como validacao manual do Swagger, ajustes de producao ou
+    preparacao para o frontend.
 20. Nao espalhar `try/catch` pelos controllers; centralizar tratamento com `@RestControllerAdvice`.

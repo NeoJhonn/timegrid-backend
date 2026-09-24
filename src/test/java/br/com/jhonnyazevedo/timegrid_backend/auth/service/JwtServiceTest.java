@@ -18,7 +18,7 @@ class JwtServiceTest {
 
     @BeforeEach
     void setUp() {
-        jwtService = new JwtService("test-secret", 60);
+        jwtService = new JwtService("test-secret", 60, 1440);
 
         user = new User();
         user.setId(UUID.randomUUID());
@@ -28,12 +28,30 @@ class JwtServiceTest {
     }
 
     @Test
-    void generateToken_shouldCreateTokenWithUserEmailAsSubject() {
-        String token = jwtService.generateToken(user);
+    void generateAccessToken_shouldCreateTokenWithUserEmailAsSubject() {
+        String token = jwtService.generateAccessToken(user);
 
         Optional<String> email = jwtService.extractEmail(token);
 
         assertEquals(Optional.of("john.manager@timegrid.test"), email);
+    }
+
+    @Test
+    void generateRefreshToken_shouldCreateRefreshTokenWithUserEmailAsSubject() {
+        String token = jwtService.generateRefreshToken(user);
+
+        Optional<String> email = jwtService.extractEmailFromRefreshToken(token);
+
+        assertEquals(Optional.of("john.manager@timegrid.test"), email);
+    }
+
+    @Test
+    void extractEmail_shouldReturnEmptyWhenTokenIsRefreshToken() {
+        String token = jwtService.generateRefreshToken(user);
+
+        Optional<String> email = jwtService.extractEmail(token);
+
+        assertTrue(email.isEmpty());
     }
 
     @Test

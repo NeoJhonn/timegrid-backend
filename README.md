@@ -1,91 +1,224 @@
-# 🗓️ TimeGrid
+# TimeGrid Backend
 
-TimeGrid é uma aplicação de agendamento desenvolvida com foco educativo, com o objetivo de ensinar conceitos reais de desenvolvimento backend utilizando Spring Boot.
+Backend educativo de um sistema de agendamento, desenvolvido com Java e Spring Boot.
 
-O projeto simula um sistema de agenda onde usuários podem cadastrar clientes e gerenciar agendamentos de forma organizada e segura.
+O projeto cobre um fluxo real de API REST com usuarios, clientes, agendamentos,
+validacoes, tratamento global de excecoes, versionamento de banco com Flyway,
+autenticacao com JWT e testes automatizados.
 
----
-
-## 🚀 Tecnologias utilizadas
+## Tecnologias
 
 - Java 21
-- Spring Boot
+- Spring Boot 4
+- Spring Web MVC
 - Spring Data JPA
 - Spring Security
-- JWT (JSON Web Token)
-- PostgreSQL
+- Spring Validation
+- Flyway
+- PostgreSQL no perfil `dev`
+- H2 no perfil `test`
 - Lombok
+- JUnit 5 e Mockito
+- Swagger/OpenAPI com Springdoc
 
----
+## Como rodar
 
-## 📖 Objetivo do projeto
+Perfil ativo padrao:
 
-Este projeto foi criado com foco em aprendizado prático, abordando:
+```properties
+spring.profiles.active=dev
+```
 
-- Estruturação de um backend real
-- Modelagem de dados (MER)
-- Implementação de regras de negócio
-- Autenticação com JWT
-- Boas práticas com Spring Boot
+No perfil `dev`, a aplicacao espera um PostgreSQL local:
 
----
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/timegridDB
+spring.datasource.username=postgres
+spring.datasource.password=123456
+```
 
-## 📊 Modelo de Dados (MER)
+Rodar os testes:
 
-Abaixo está o modelo entidade-relacionamento da aplicação:
+```bash
+mvn test
+```
 
-![MER](./assets/Diagrama%20sem%20App%20Agenda.png)
+Rodar a aplicacao:
 
+```bash
+mvn spring-boot:run
+```
 
+## Autenticacao
 
----
+O login usa email e senha:
 
-## 🧠 Regras de Negócio
+```http
+POST /auth/login
+```
 
-A aplicação segue algumas regras essenciais para garantir a consistência dos dados:
+Exemplo:
 
-### ⛔ 1. Não permitir conflito de horário
-Um usuário não pode ter dois agendamentos no mesmo horário.
+```json
+{
+  "email": "john.manager@timegrid.test",
+  "password": "123456"
+}
+```
 
----
+Resposta:
 
-### ⏰ 2. Limite de horário
-Os agendamentos só podem ser feitos dentro do intervalo:
+```json
+{
+  "accessToken": "...",
+  "refreshToken": "..."
+}
+```
 
-- Início: 08:00
-- Fim: 22:00
+Use o access token nas rotas protegidas:
 
----
+```http
+Authorization: Bearer <accessToken>
+```
 
-### 👤 3. Cliente pertence ao usuário
-Um usuário só pode agendar horários para seus próprios clientes.
+Renovar o access token:
 
----
+```http
+POST /auth/refresh
+```
 
-## ✅ Requisitos Funcionais
+```json
+{
+  "refreshToken": "..."
+}
+```
 
-- Cadastro de usuário
-- Autenticação com login
-- Geração de token JWT
-- Cadastro de clientes
-- Listagem de clientes por usuário
-- Autocomplete de clientes no agendamento
-- Criação de agendamentos
-- Validação de regras de negócio no backend
+Regras atuais:
 
----
+- access token: 60 minutos
+- refresh token: 24 horas
+- ao renovar, a API gera um novo access token e mantem o mesmo refresh token ate ele expirar
+- depois de 24 horas, o usuario precisa fazer login novamente
 
-## 🔒 Requisitos Não Funcionais
+## Autorizacao
 
-- Segurança com autenticação JWT
-- Senhas criptografadas
-- Validação de dados no backend
-- Integridade relacional com banco de dados
-- Estrutura organizada em camadas (Controller, Service, Repository)
+Roles atuais:
 
----
+- `MANAGER`: super usuario, pode acessar todos os endpoints, incluindo criacao de usuarios
+- `ADMIN`: usuario comum autenticado, pode acessar os endpoints protegidos, exceto criacao de usuarios
 
-## 🏗️ Estrutura do Projeto
+Endpoints publicos:
 
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `/h2-console/**`
+- `/swagger-ui/**`
+- `/v3/api-docs/**`
 
+Endpoint restrito a `MANAGER`:
 
+- `POST /users`
+
+Demais endpoints exigem usuario autenticado via JWT.
+
+## Endpoints principais
+
+Usuarios:
+
+```http
+POST /users
+GET /users
+GET /users/{id}
+PUT /users/{id}
+DELETE /users/{id}
+PATCH /users/{id}/active?active=true
+```
+
+Clientes:
+
+```http
+POST /users/{userId}/clients
+GET /users/{userId}/clients
+GET /users/{userId}/clients/{clientId}
+PUT /users/{userId}/clients/{clientId}
+DELETE /users/{userId}/clients/{clientId}
+```
+
+Agendamentos:
+
+```http
+POST /users/{userId}/appointments
+GET /users/{userId}/appointments?date=2026-10-20
+PUT /users/{userId}/appointments/{appointmentId}
+DELETE /users/{userId}/appointments/{appointmentId}
+```
+
+## Swagger
+
+Com a aplicacao rodando:
+
+```text
+http://localhost:8080/swagger-ui/index.html
+```
+
+Use o botao de autorizacao do Swagger para informar:
+
+```text
+Bearer <accessToken>
+```
+
+## CORS
+
+Origem padrao liberada para desenvolvimento:
+
+```properties
+timegrid.cors.allowed-origins=${CORS_ALLOWED_ORIGINS:http://localhost:4200}
+```
+
+Para liberar mais de uma origem:
+
+```bash
+CORS_ALLOWED_ORIGINS=http://localhost:4200,https://seu-front.com
+```
+
+## Variaveis de ambiente
+
+```properties
+JWT_SECRET=defina-um-segredo-forte-em-producao
+JWT_EXPIRATION_MINUTES=60
+JWT_REFRESH_EXPIRATION_MINUTES=1440
+CORS_ALLOWED_ORIGINS=http://localhost:4200
+```
+
+## Regras de negocio importantes
+
+- usuario deletado sofre soft delete (`active=false`)
+- apenas usuarios ativos aparecem na listagem
+- cliente pertence a um usuario
+- agendamento pertence a um usuario e a um cliente
+- cliente precisa pertencer ao usuario informado no agendamento
+- horarios encostados contam como conflito
+- update de agendamento altera somente `endTime` e `service`
+
+## Banco e Flyway
+
+Migrations atuais:
+
+- `V1__create_initial_schema.sql`
+- `V2__seed_initial_data.sql`
+- `V3__encode_seed_user_passwords.sql`
+
+A `V3` converte as senhas seedadas `123456` para BCrypt. O login continua usando
+a senha original `123456`; a hash fica apenas armazenada no banco.
+
+## Testes
+
+A suite cobre services, controllers, tratamento global de excecoes, autenticacao
+e JWT.
+
+Ultima verificacao:
+
+```text
+mvn test
+BUILD SUCCESS
+```

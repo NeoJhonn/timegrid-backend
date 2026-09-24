@@ -22,17 +22,36 @@ public class JwtService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final String secret;
-    private final long expirationMinutes;
+    private final long accessExpirationMinutes;
+    private final long refreshExpirationMinutes;
 
     public JwtService(
             @Value("${timegrid.jwt.secret}") String secret,
-            @Value("${timegrid.jwt.expiration-minutes}") long expirationMinutes
+            @Value("${timegrid.jwt.expiration-minutes}") long accessExpirationMinutes,
+            @Value("${timegrid.jwt.refresh-expiration-minutes}") long refreshExpirationMinutes
     ) {
         this.secret = secret;
-        this.expirationMinutes = expirationMinutes;
+        this.accessExpirationMinutes = accessExpirationMinutes;
+        this.refreshExpirationMinutes = refreshExpirationMinutes;
     }
 
-    public String generateToken(User user) {
+    public String generateAccessToken(User user) {
+        return generateToken(user, "access", accessExpirationMinutes);
+    }
+
+    public String generateRefreshToken(User user) {
+        return generateToken(user, "refresh", refreshExpirationMinutes);
+    }
+
+    public Optional<String> extractEmail(String token) {
+        return extractEmail(token, "access");
+    }
+
+    public Optional<String> extractEmailFromRefreshToken(String token) {
+        return extractEmail(token, "refresh");
+    }
+
+    private String generateToken(User user, String type, long expirationMinutes) {
         Instant now = Instant.now();
 
         Map<String, Object> header = new LinkedHashMap<>();
@@ -43,6 +62,7 @@ public class JwtService {
         payload.put("sub", user.getEmail());
         payload.put("userId", user.getId().toString());
         payload.put("role", user.getRole().name());
+        payload.put("type", type);
         payload.put("iat", now.getEpochSecond());
         payload.put("exp", now.plusSeconds(expirationMinutes * 60).getEpochSecond());
 
@@ -53,7 +73,7 @@ public class JwtService {
         return content + "." + sign(content);
     }
 
-    public Optional<String> extractEmail(String token) {
+    private Optional<String> extractEmail(String token, String expectedType) {
         try {
             if (!isSignatureValid(token)) {
                 return Optional.empty();
@@ -63,6 +83,12 @@ public class JwtService {
             Number expiration = (Number) payload.get("exp");
 
             if (expiration == null || expiration.longValue() < Instant.now().getEpochSecond()) {
+                return Optional.empty();
+            }
+
+            String type = (String) payload.get("type");
+
+            if (!expectedType.equals(type)) {
                 return Optional.empty();
             }
 

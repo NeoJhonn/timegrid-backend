@@ -2,6 +2,7 @@ package br.com.jhonnyazevedo.timegrid_backend.auth.service;
 
 import br.com.jhonnyazevedo.timegrid_backend.auth.dto.LoginRequest;
 import br.com.jhonnyazevedo.timegrid_backend.auth.dto.LoginResponse;
+import br.com.jhonnyazevedo.timegrid_backend.auth.dto.RefreshTokenRequest;
 import br.com.jhonnyazevedo.timegrid_backend.exception.BusinessException;
 import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import br.com.jhonnyazevedo.timegrid_backend.user.repository.UserRepository;
@@ -30,6 +31,31 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("Email ou senha invalidos.");
         }
 
-        return new LoginResponse(jwtService.generateToken(user));
+        return createLoginResponse(user);
+    }
+
+    @Override
+    public LoginResponse refresh(RefreshTokenRequest request) {
+        String email = jwtService.extractEmailFromRefreshToken(request.refreshToken())
+                .orElseThrow(() -> new BusinessException("Refresh token invalido ou expirado."));
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException("Refresh token invalido ou expirado."));
+
+        if (!Boolean.TRUE.equals(user.getActive())) {
+            throw new BusinessException("Usuario inativo.");
+        }
+
+        return new LoginResponse(
+                jwtService.generateAccessToken(user),
+                request.refreshToken()
+        );
+    }
+
+    private LoginResponse createLoginResponse(User user) {
+        return new LoginResponse(
+                jwtService.generateAccessToken(user),
+                jwtService.generateRefreshToken(user)
+        );
     }
 }

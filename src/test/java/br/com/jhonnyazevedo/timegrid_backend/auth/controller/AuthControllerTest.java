@@ -2,6 +2,7 @@ package br.com.jhonnyazevedo.timegrid_backend.auth.controller;
 
 import br.com.jhonnyazevedo.timegrid_backend.auth.dto.LoginRequest;
 import br.com.jhonnyazevedo.timegrid_backend.auth.dto.LoginResponse;
+import br.com.jhonnyazevedo.timegrid_backend.auth.dto.RefreshTokenRequest;
 import br.com.jhonnyazevedo.timegrid_backend.auth.service.AuthService;
 import br.com.jhonnyazevedo.timegrid_backend.exception.BusinessException;
 import br.com.jhonnyazevedo.timegrid_backend.exception.GlobalExceptionHandler;
@@ -39,7 +40,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void login_shouldReturnTokenWhenCredentialsAreValid() throws Exception {
+    void login_shouldReturnTokensWhenCredentialsAreValid() throws Exception {
         String requestBody = """
                 {
                   "email": "john.manager@timegrid.test",
@@ -47,13 +48,14 @@ class AuthControllerTest {
                 }
                 """;
 
-        when(authService.login(any(LoginRequest.class))).thenReturn(new LoginResponse("jwt-token"));
+        when(authService.login(any(LoginRequest.class))).thenReturn(new LoginResponse("access-token", "refresh-token"));
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("jwt-token"));
+                .andExpect(jsonPath("$.accessToken").value("access-token"))
+                .andExpect(jsonPath("$.refreshToken").value("refresh-token"));
     }
 
     @Test
@@ -92,5 +94,41 @@ class AuthControllerTest {
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Email ou senha invalidos."));
+    }
+
+    @Test
+    void refresh_shouldReturnTokensWhenRefreshTokenIsValid() throws Exception {
+        String requestBody = """
+                {
+                  "refreshToken": "refresh-token"
+                }
+                """;
+
+        when(authService.refresh(any(RefreshTokenRequest.class)))
+                .thenReturn(new LoginResponse("new-access-token", "refresh-token"));
+
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("new-access-token"))
+                .andExpect(jsonPath("$.refreshToken").value("refresh-token"));
+    }
+
+    @Test
+    void refresh_shouldReturnBadRequestWhenRequestIsInvalid() throws Exception {
+        String requestBody = """
+                {
+                  "refreshToken": ""
+                }
+                """;
+
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fields.refreshToken").exists());
+
+        verify(authService, never()).refresh(any());
     }
 }

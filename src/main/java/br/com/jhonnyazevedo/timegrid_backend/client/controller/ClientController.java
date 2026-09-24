@@ -5,6 +5,8 @@ import br.com.jhonnyazevedo.timegrid_backend.client.dto.ClientResponse;
 import br.com.jhonnyazevedo.timegrid_backend.client.entity.Client;
 import br.com.jhonnyazevedo.timegrid_backend.client.mapper.ClientMapper;
 import br.com.jhonnyazevedo.timegrid_backend.client.service.ClientService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,12 +26,14 @@ import java.util.UUID;
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
+@Tag(name = "Clients", description = "Endpoints para gerenciamento de clientes por usuario")
 public class ClientController {
 
     private final ClientService clientService;
     private final ClientMapper clientMapper;
 
     @PostMapping("/users/{userId}/clients")
+    @Operation(summary = "Cria cliente", description = "Cria um cliente vinculado ao usuario informado no path.")
     public ResponseEntity<ClientResponse> createClient(
             @PathVariable UUID userId,
             @RequestBody @Valid ClientRequest request
@@ -40,12 +44,14 @@ public class ClientController {
     }
 
     @GetMapping("/users/{userId}/clients")
+    @Operation(summary = "Lista clientes do usuario", description = "Retorna todos os clientes vinculados ao usuario informado.")
     public ResponseEntity<List<ClientResponse>> listByUser(@PathVariable UUID userId) {
         List<Client> clients = clientService.listByUser(userId);
         return ResponseEntity.ok(clientMapper.toResponseList(clients));
     }
 
     @GetMapping("/users/{userId}/clients/{clientId}")
+    @Operation(summary = "Busca cliente por ID", description = "Busca um cliente e valida se ele pertence ao usuario informado.")
     public ResponseEntity<ClientResponse> findById(
             @PathVariable UUID userId,
             @PathVariable UUID clientId
@@ -55,6 +61,7 @@ public class ClientController {
     }
 
     @PutMapping("/users/{userId}/clients/{clientId}")
+    @Operation(summary = "Atualiza cliente", description = "Atualiza nome e telefone de um cliente pertencente ao usuario informado.")
     public ResponseEntity<ClientResponse> updateClient(
             @PathVariable UUID userId,
             @PathVariable UUID clientId,
@@ -66,6 +73,7 @@ public class ClientController {
     }
 
     @DeleteMapping("/users/{userId}/clients/{clientId}")
+    @Operation(summary = "Remove cliente", description = "Remove um cliente apos validar que ele pertence ao usuario informado.")
     public ResponseEntity<Void> deleteClient(
             @PathVariable UUID userId,
             @PathVariable UUID clientId
