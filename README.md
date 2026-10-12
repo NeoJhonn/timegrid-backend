@@ -393,6 +393,12 @@ A origem padrão liberada para desenvolvimento é:
 http://localhost:4200
 ```
 
+No perfil `prod`, a origem padrão é o frontend publicado na Vercel:
+
+```properties
+https://timegrid-frontend.vercel.app
+```
+
 Configuração:
 
 ```properties
@@ -404,6 +410,9 @@ Para liberar mais de uma origem:
 ```bash
 CORS_ALLOWED_ORIGINS=http://localhost:4200,https://seu-front.com
 ```
+
+Observação: a origem CORS usa apenas protocolo, domínio e porta. Caminhos como
+`/login` não entram nessa configuração.
 
 ---
 
@@ -433,7 +442,7 @@ Variáveis de ambiente importantes:
 JWT_SECRET=defina-um-segredo-forte-em-producao
 JWT_EXPIRATION_MINUTES=60
 JWT_REFRESH_EXPIRATION_MINUTES=1440
-CORS_ALLOWED_ORIGINS=http://localhost:4200
+CORS_ALLOWED_ORIGINS=https://timegrid-frontend.vercel.app
 ```
 
 ---

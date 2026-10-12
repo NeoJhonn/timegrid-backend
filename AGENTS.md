@@ -94,7 +94,8 @@ Ainda nao existem:
   no PostgreSQL local do perfil `dev`
 
 `application-prod.properties`:
-- existe, mas esta vazio.
+- CORS padrao de producao aponta para `https://timegrid-frontend.vercel.app`
+- valor pode ser sobrescrito por `CORS_ALLOWED_ORIGINS`
 
 ## Security
 
@@ -106,7 +107,9 @@ Estado atual:
 - frame options desabilitado para permitir H2 console
 - `formLogin` e `httpBasic` desabilitados
 - sessao configurada como stateless
-- CORS configurado com origem padrao `http://localhost:4200`
+- CORS configurado com origem padrao `http://localhost:4200` no perfil `dev`
+- CORS configurado com origem padrao `https://timegrid-frontend.vercel.app`
+  no perfil `prod`
 - `/h2-console/**` liberado
 - `POST /auth/login` liberado
 - `POST /auth/refresh` liberado
