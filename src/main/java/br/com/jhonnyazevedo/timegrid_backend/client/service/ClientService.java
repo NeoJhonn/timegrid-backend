@@ -11,9 +11,9 @@ public interface ClientService {
 
     List<Client> listByUser(UUID userId);
 
-    Client findById(UUID id);
+    Client findById(UUID userId, UUID clientId);
 
-    Client updateClient(UUID id, Client client);
+    Client updateClient(UUID userId, UUID clientId, Client client);
 
     void deleteClient(UUID userId, UUID clientId);
 }

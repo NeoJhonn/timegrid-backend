@@ -18,4 +18,8 @@ public interface UserService {
     void deleteUser(UUID id);
 
     void setActive(UUID id, Boolean active);
+
+    void changeOwnPassword(String email, String currentPassword, String newPassword);
+
+    void resetPassword(UUID id, String newPassword);
 }

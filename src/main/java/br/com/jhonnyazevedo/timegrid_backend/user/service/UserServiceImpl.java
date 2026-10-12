@@ -4,6 +4,7 @@ import br.com.jhonnyazevedo.timegrid_backend.exception.BusinessException;
 import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import br.com.jhonnyazevedo.timegrid_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public User createUser(User user) {
@@ -27,6 +29,7 @@ public class UserServiceImpl implements UserService {
         }
 
         user.setActive(true);
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
 
         return userRepository.save(user);
     }
@@ -69,7 +72,6 @@ public class UserServiceImpl implements UserService {
 
         existing.setUsername(user.getUsername());
         existing.setEmail(user.getEmail());
-        existing.setPassword(user.getPassword());
         existing.setRole(user.getRole());
 
         return userRepository.save(existing);
@@ -87,6 +89,30 @@ public class UserServiceImpl implements UserService {
     public void setActive(UUID id, Boolean active) {
         User user = findById(id);
         user.setActive(active);
+        userRepository.save(user);
+    }
+
+    @Override
+    public void changeOwnPassword(String email, String currentPassword, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException("Usuario nao encontrado."));
+
+        if (!Boolean.TRUE.equals(user.getActive())) {
+            throw new BusinessException("Usuario inativo.");
+        }
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BusinessException("Senha atual invalida.");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    @Override
+    public void resetPassword(UUID id, String newPassword) {
+        User user = findById(id);
+        user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
 }

@@ -23,23 +23,19 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final UserRepository userRepository;
     private final ClientRepository clientRepository;
 
-
     @Transactional
     @Override
     public Appointment createAppointment(UUID userId, UUID clientId, Appointment appointment) {
 
-        // Validação Básica
         if (appointment.getStartTime() == null || appointment.getEndTime() == null
                 || appointment.getAppointmentDate() == null) {
             throw new BusinessException("Dados inválidos para agendamento");
         }
 
-        // Regra de horário
         if (appointment.getStartTime().ordinal() > appointment.getEndTime().ordinal()) {
             throw new BusinessException("Horário de início não pode ser maior que horário final");
         }
 
-        // Data passada
         if (appointment.getAppointmentDate().isBefore(LocalDate.now())) {
             throw new BusinessException("Não é possível agendar em datas passadas");
         }
@@ -50,12 +46,10 @@ public class AppointmentServiceImpl implements AppointmentService {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new BusinessException("Cliente não encontrado"));
 
-        // Segurança
         if (client.getUser() == null || !client.getUser().getId().equals(user.getId())) {
             throw new BusinessException("Cliente não pertence ao usuário logado");
         }
 
-        // Clonflito de Intervalo de horário
         boolean conflict = appointmentRepository.existsConflict(
                 user,
                 appointment.getAppointmentDate(),
@@ -63,7 +57,6 @@ public class AppointmentServiceImpl implements AppointmentService {
                 appointment.getEndTime(),
                 null
         );
-
 
         if (conflict) {
             throw new BusinessException("Já existe um agendamento neste intervalo de horário");
@@ -80,8 +73,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment existAppointment = appointmentRepository.findById(appointment.getId())
                 .orElseThrow(() -> new BusinessException("Agendamento não encontrado"));
 
-        // Segurança
-        if (!existAppointment.getUser().getId().equals(userId)) {
+        if (existAppointment.getUser() == null || !existAppointment.getUser().getId().equals(userId)) {
             throw new BusinessException("Agendamento não pertence ao usuário");
         }
 
@@ -90,12 +82,10 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new BusinessException("Horário final e serviço são obrigatórios");
         }
 
-        // Validação de Horário
         if (existAppointment.getStartTime().ordinal() > appointment.getEndTime().ordinal()) {
             throw new BusinessException("Horário de início não pode ser maior que horário final");
         }
 
-        // Clonflito de Intervalo de horário
         boolean conflict = appointmentRepository.existsConflict(
                 existAppointment.getUser(),
                 existAppointment.getAppointmentDate(),
@@ -104,15 +94,12 @@ public class AppointmentServiceImpl implements AppointmentService {
                 existAppointment.getId()
         );
 
-
         if (conflict) {
             throw new BusinessException("Já existe um agendamento neste intervalo de horário");
         }
 
-        // Atualiza o agendamento com os novos dados
         existAppointment.setEndTime(appointment.getEndTime());
         existAppointment.setService(appointment.getService());
-
 
         return appointmentRepository.save(existAppointment);
     }
@@ -125,12 +112,15 @@ public class AppointmentServiceImpl implements AppointmentService {
         return appointmentRepository.findByUserAndAppointmentDate(user, date);
     }
 
-
     @Override
-    public void deleteAppointment(UUID id) {
-        appointmentRepository.findById(id).orElseThrow(() ->
-                new BusinessException("Agendamento não encontrado"));
+    public void deleteAppointment(UUID userId, UUID appointmentId) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new BusinessException("Agendamento não encontrado"));
 
-        appointmentRepository.deleteById(id);
+        if (appointment.getUser() == null || !appointment.getUser().getId().equals(userId)) {
+            throw new BusinessException("Agendamento não pertence ao usuário");
+        }
+
+        appointmentRepository.delete(appointment);
     }
 }

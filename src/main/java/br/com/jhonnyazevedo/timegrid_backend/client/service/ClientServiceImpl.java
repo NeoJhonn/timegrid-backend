@@ -15,7 +15,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ClientServiceImpl implements ClientService {
 
-
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
 
@@ -44,15 +43,21 @@ public class ClientServiceImpl implements ClientService {
     }
 
     @Override
-    public Client findById(UUID id) {
-        return clientRepository.findById(id)
+    public Client findById(UUID userId, UUID clientId) {
+        Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new BusinessException("Cliente não encontrado."));
+
+        if (client.getUser() == null || !client.getUser().getId().equals(userId)) {
+            throw new BusinessException("Cliente não pertence ao usuário");
+        }
+
+        return client;
     }
 
     @Override
-    public Client updateClient(UUID id, Client client) {
+    public Client updateClient(UUID userId, UUID clientId, Client client) {
 
-        Client existing = findById(id);
+        Client existing = findById(userId, clientId);
 
         if (client.getName() == null || client.getName().isBlank()) {
             throw new BusinessException("Nome do cliente é obrigatório.");
@@ -63,7 +68,7 @@ public class ClientServiceImpl implements ClientService {
         }
 
         clientRepository.findByUserAndPhone(existing.getUser(), client.getPhone())
-                .filter(found -> !found.getId().equals(id))
+                .filter(found -> !found.getId().equals(clientId))
                 .ifPresent(found -> {
                     throw new BusinessException("Cliente já cadastrado com esse telefone.");
                 });
@@ -76,12 +81,7 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     public void deleteClient(UUID userId, UUID clientId) {
-        Client client = findById(clientId);
-
-        if (!client.getUser().getId().equals(userId)) {
-            throw new BusinessException("Cliente não pertence ao usuário");
-        }
-
+        Client client = findById(userId, clientId);
         clientRepository.delete(client);
     }
 }

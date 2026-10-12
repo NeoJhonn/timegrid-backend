@@ -8,7 +8,7 @@ repositories, services, regras de negocio, depois DTOs, mappers,
 controllers, tratamento global de excecoes, testes e, por ultimo,
 autenticacao/JWT.
 
-Atualizado em: 2026-05-18.
+Atualizado em: 2026-09-23.
 
 ## Current Workspace
 
@@ -34,7 +34,7 @@ Maven:
 - Lombok
 - PostgreSQL no perfil `dev`
 - H2 no perfil `test`
-- Flyway esta no `pom.xml`, mas ainda nao ha migrations em `src/main/resources`
+- Flyway esta configurado e possui migrations em `src/main/resources/db/migration`
 - O `pom.xml` foi limpo em 2026-05-18 para manter somente dependencias usadas
   ou planejadas no curto prazo.
 
@@ -43,15 +43,24 @@ Maven:
 Main folders:
 
 - `appointment`
+  - `controller`
+  - `dto`
   - `entity`
+  - `mapper`
   - `repository`
   - `service`
 - `client`
+  - `controller`
+  - `dto`
   - `entity`
+  - `mapper`
   - `repository`
   - `service`
 - `user`
+  - `controller`
+  - `dto`
   - `entity`
+  - `mapper`
   - `repository`
   - `service`
 - `config`
@@ -59,13 +68,7 @@ Main folders:
 - `exception`
 
 Ainda nao existem:
-- controllers REST
-- DTOs
-- mappers
-- autenticacao JWT real
-- `PasswordEncoder`
-- `@RestControllerAdvice`
-- testes especificos de services/repositories
+- testes especificos de repositories
 
 ## Configuration
 
@@ -78,17 +81,21 @@ Ainda nao existem:
 - database: `timegridDB`
 - username: `postgres`
 - password: `123456`
-- `spring.jpa.hibernate.ddl-auto=update`
+- `spring.jpa.hibernate.ddl-auto=validate`
 - `spring.jpa.show-sql=true`
+- `spring.flyway.baseline-on-migrate=true`
 
 `application-test.properties`:
 - H2 em memoria
 - H2 console habilitado em `/h2-console`
 - `spring.jpa.hibernate.ddl-auto=update`
 - SQL formatado e exibido
+- perfil de teste foi mantido como estava; o foco atual do versionamento esta
+  no PostgreSQL local do perfil `dev`
 
 `application-prod.properties`:
-- existe, mas esta vazio.
+- CORS padrao de producao aponta para `https://timegrid-frontend.vercel.app`
+- valor pode ser sobrescrito por `CORS_ALLOWED_ORIGINS`
 
 ## Security
 
@@ -98,14 +105,31 @@ Classe:
 Estado atual:
 - CSRF desabilitado
 - frame options desabilitado para permitir H2 console
+- `formLogin` e `httpBasic` desabilitados
+- sessao configurada como stateless
+- CORS configurado com origem padrao `http://localhost:4200` no perfil `dev`
+- CORS configurado com origem padrao `https://timegrid-frontend.vercel.app`
+  no perfil `prod`
 - `/h2-console/**` liberado
-- todas as demais rotas tambem estao liberadas com `anyRequest().permitAll()`
+- `POST /auth/login` liberado
+- `POST /auth/refresh` liberado
+- Swagger/OpenAPI liberado em `/swagger-ui/**` e `/v3/api-docs/**`
+- `POST /users` restrito a usuarios com role `MANAGER`
+- `PATCH /users/{id}/password` restrito a usuarios com role `MANAGER`
+- `DELETE /users/{id}` restrito a usuarios com role `MANAGER`
+- demais rotas exigem JWT no header `Authorization: Bearer <token>`
 
 Importante:
-- Spring Security esta configurado, mas ainda nao existe autenticacao real.
-- JWT deve ficar para uma etapa posterior, depois de DTOs, controllers,
-  exception handler, testes e senha criptografada.
-- Antes de qualquer login real, implementar `PasswordEncoder`.
+- `PasswordEncoder` foi implementado com `BCryptPasswordEncoder`.
+- Login real foi implementado em `/auth/login` usando email e senha.
+- JWT foi implementado com `JwtService` e `JwtAuthenticationFilter`.
+- Access token e refresh token guardam o email no `sub`, o `userId`, a `role`,
+  `type`, `iat` e `exp`.
+- Access token expira em 60 minutos por padrao.
+- Refresh token expira em 24 horas por padrao e nao e renovado no refresh.
+- O login foi testado manualmente no Insomnia com sucesso.
+- `ADMIN` acessa rotas autenticadas, exceto criacao de usuario.
+- `MANAGER` e o super usuario/root e acessa todos os endpoints.
 
 ## POM / Dependencies
 
@@ -125,6 +149,13 @@ Dependencias mantidas:
 - Devtools
 - starters de teste relacionados a Web MVC, JPA, Security, Validation e Flyway
 
+Configuracao de teste no Maven:
+- `maven-surefire-plugin` configurado com Mockito como `javaagent`
+- Lombok declarado explicitamente na dependencia e no `annotationProcessorPaths`
+  usando `${lombok.version}`
+- ajuste feito em 2026-09-06 para remover warning do Mockito sobre self-attach
+  e estabilizar processamento do Lombok no IntelliJ
+
 Dependencias removidas por nao estarem em uso:
 - Spring Data JDBC
 - Spring Data REST
@@ -139,8 +170,44 @@ Dependencias removidas por nao estarem em uso:
 Observacao importante:
 - Como `spring-boot-starter-data-rest` foi removido, os repositories nao sao
   mais expostos automaticamente como endpoints REST.
-- Enquanto nao existirem controllers REST proprios, acessar
-  `http://localhost:8080` pode exibir Whitelabel/404. Isso e esperado.
+- Controllers REST proprios foram criados em 2026-06-17.
+- Acessar `http://localhost:8080` diretamente ainda pode exibir Whitelabel/404,
+  pois nao existe endpoint para `/`. Isso e esperado.
+
+## Database Versioning
+
+Versionamento de banco criado em 2026-08-04 com Flyway.
+
+Pasta:
+`src/main/resources/db/migration`
+
+Migrations atuais:
+- `V1__create_initial_schema.sql`
+  - cria as tabelas `users`, `clients` e `appointments`
+  - cria primary keys, foreign keys e constraints unicas principais
+  - usa `CREATE TABLE IF NOT EXISTS` para permitir transicao do banco dev que
+    ja tinha tabelas geradas previamente pelo Hibernate
+- `V2__seed_initial_data.sql`
+  - adiciona 3 usuarios ficticios
+  - adiciona 3 clientes ficticios
+  - adiciona 6 agendamentos ficticios
+  - usa IDs fixos para facilitar testes manuais de endpoints
+- `V3__encode_seed_user_passwords.sql`
+  - atualiza senhas seedadas em texto puro (`123456`) para hash BCrypt
+  - permite login manual com a senha original `123456`
+
+Estado atual:
+- Flyway ja aplicou as migrations no PostgreSQL local `timegridDB`
+- schema atual no dev: versao `3`
+- Hibernate no perfil `dev` esta em `validate`, entao ele apenas valida o schema
+  criado pelo Flyway
+- o seed foi confirmado pelo usuario no DBeaver
+
+Observacoes:
+- O seed original usava senhas em texto puro, mas a `V3` converte esses valores
+  para BCrypt.
+- Para producao, revisar credenciais, seed e estrategia de migrations antes do
+  primeiro deploy real.
 
 ## Domain Model
 
@@ -351,6 +418,279 @@ Metodos:
 A query `existsConflict` verifica conflito de intervalo para o mesmo usuario
 e data. A regra atual considera horarios encostados como conflito.
 
+## DTOs And Manual Mappers
+
+DTOs e mappers manuais foram criados em 2026-06-12.
+
+Padrao adotado:
+- DTOs implementados como Java `record`.
+- Validacao de entrada com Jakarta Bean Validation nos request DTOs.
+- Mappers manuais anotados com `@Component`.
+- Response DTOs nao expõem senha.
+- Mappers convertem request DTO para entidade e entidade para response DTO.
+- Controllers REST foram criados em 2026-06-17 usando DTOs, mappers e services.
+
+### User DTOs
+
+Pacote:
+`user.dto`
+
+Arquivos:
+- `UserRequest`
+- `UserResponse`
+
+`UserRequest` contem:
+- `username`
+- `email`
+- `password`
+- `role`
+
+Validacoes:
+- `username`: `@NotBlank`
+- `email`: `@NotBlank` e `@Email`
+- `password`: `@NotBlank`
+- `role`: `@NotNull`
+
+`UserResponse` contem:
+- `id`
+- `username`
+- `email`
+- `role`
+- `active`
+- `createdAt`
+
+Importante:
+- `UserResponse` nao retorna `password`.
+
+`UserUpdateRequest` contem:
+- `username`
+- `email`
+- `role`
+
+Importante:
+- update geral de usuario nao altera senha.
+- troca/reset de senha usam endpoints proprios.
+
+DTOs de senha:
+- `ChangePasswordRequest`: `currentPassword`, `newPassword`
+- `ResetPasswordRequest`: `newPassword`
+
+Mapper:
+`user.mapper.UserMapper`
+
+Metodos:
+- `User toEntity(UserRequest request)`
+- `User toEntity(UserUpdateRequest request)`
+- `UserResponse toResponse(User user)`
+- `List<UserResponse> toResponseList(List<User> users)`
+
+### Client DTOs
+
+Pacote:
+`client.dto`
+
+Arquivos:
+- `ClientRequest`
+- `ClientResponse`
+
+`ClientRequest` contem:
+- `name`
+- `phone`
+
+Validacoes:
+- `name`: `@NotBlank`
+- `phone`: `@NotBlank`
+
+`ClientResponse` contem:
+- `id`
+- `name`
+- `phone`
+- `userId`
+- `createdAt`
+
+Mapper:
+`client.mapper.ClientMapper`
+
+Metodos:
+- `Client toEntity(ClientRequest request)`
+- `ClientResponse toResponse(Client client)`
+- `List<ClientResponse> toResponseList(List<Client> clients)`
+
+### Appointment DTOs
+
+Pacote:
+`appointment.dto`
+
+Arquivos:
+- `AppointmentRequest`
+- `AppointmentUpdateRequest`
+- `AppointmentResponse`
+
+`AppointmentRequest` contem:
+- `clientId`
+- `service`
+- `appointmentDate`
+- `startTime`
+- `endTime`
+
+Validacoes:
+- `clientId`: `@NotNull`
+- `service`: `@NotBlank`
+- `appointmentDate`: `@NotNull` e `@FutureOrPresent`
+- `startTime`: `@NotNull`
+- `endTime`: `@NotNull`
+
+`AppointmentUpdateRequest` reflete a regra atual de update e contem somente:
+- `endTime`
+- `service`
+
+Validacoes:
+- `endTime`: `@NotNull`
+- `service`: `@NotBlank`
+
+`AppointmentResponse` contem:
+- `id`
+- `userId`
+- `clientId`
+- `clientName`
+- `service`
+- `appointmentDate`
+- `startTime`
+- `endTime`
+- `createdAt`
+
+Mapper:
+`appointment.mapper.AppointmentMapper`
+
+Metodos:
+- `Appointment toEntity(AppointmentRequest request)`
+- `Appointment toEntity(UUID appointmentId, AppointmentUpdateRequest request)`
+- `AppointmentResponse toResponse(Appointment appointment)`
+- `List<AppointmentResponse> toResponseList(List<Appointment> appointments)`
+
+Build verificado:
+- `mvn test` executado em 2026-09-06 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 29, Failures: 0, Errors: 0`.
+
+## Controllers REST
+
+Controllers REST foram criados em 2026-06-17.
+
+Padrao adotado:
+- Controllers recebem request DTOs com `@RequestBody @Valid`.
+- Controllers usam mappers manuais para converter DTO para entidade.
+- Controllers chamam os services existentes.
+- Controllers retornam response DTOs.
+- Controllers nao possuem `try/catch` local para regras de negocio.
+- Tratamento de excecoes deve ser centralizado futuramente com
+  `@RestControllerAdvice`.
+
+### UserController
+
+Classe:
+`user.controller.UserController`
+
+Base path:
+`/users`
+
+Endpoints:
+- `POST /users`
+- `GET /users`
+- `GET /users/{id}`
+- `PUT /users/{id}`
+- `DELETE /users/{id}`
+- `PATCH /users/{id}/active?active=true`
+- `PATCH /users/me/password`
+- `PATCH /users/{id}/password`
+
+Observacoes:
+- Usa `UserRequest`, `UserResponse` e `UserMapper`.
+- `PUT /users/{id}` usa `UserUpdateRequest` e atualiza somente username,
+  email e role.
+- `DELETE /users/{id}` chama soft delete via `UserService.deleteUser`.
+- `DELETE /users/{id}` e restrito a `MANAGER`.
+- `PATCH /users/{id}/active` chama `UserService.setActive`.
+- `PATCH /users/me/password` troca a senha do usuario autenticado validando a
+  senha atual.
+- `PATCH /users/{id}/password` redefine senha de usuario e e restrito a
+  `MANAGER`.
+
+### ClientController
+
+Classe:
+`client.controller.ClientController`
+
+Endpoints:
+- `POST /users/{userId}/clients`
+- `GET /users/{userId}/clients`
+- `GET /users/{userId}/clients/{clientId}`
+- `PUT /users/{userId}/clients/{clientId}`
+- `DELETE /users/{userId}/clients/{clientId}`
+
+Observacoes:
+- Usa `ClientRequest`, `ClientResponse` e `ClientMapper`.
+- Create/list/find/update/delete carregam `userId` no path porque o service atual
+  depende do usuario para validar pertencimento e escopo.
+- Find/update/delete validam pertencimento no service.
+
+### AppointmentController
+
+Classe:
+`appointment.controller.AppointmentController`
+
+Endpoints:
+- `POST /users/{userId}/appointments`
+- `GET /users/{userId}/appointments?date=yyyy-MM-dd`
+- `PUT /users/{userId}/appointments/{appointmentId}`
+- `DELETE /users/{userId}/appointments/{appointmentId}`
+
+Observacoes:
+- Usa `AppointmentRequest`, `AppointmentUpdateRequest`,
+  `AppointmentResponse` e `AppointmentMapper`.
+- Create recebe `clientId` pelo `AppointmentRequest`.
+- Listagem por data usa query param `date` com formato ISO, exemplo:
+  `?date=2026-06-17`.
+- Update respeita a regra de negocio atual: altera somente `endTime` e
+  `service`.
+- Delete de appointment recebe `userId` e valida pertencimento no service antes
+  de deletar.
+
+Build verificado:
+- `mvn test` executado em 2026-09-06 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 29, Failures: 0, Errors: 0`.
+
+## Exception Handling
+
+Tratamento global de excecoes criado em 2026-07-21.
+
+Arquivos:
+- `exception.ErrorResponse`
+- `exception.ValidationErrorResponse`
+- `exception.GlobalExceptionHandler`
+
+Decisao tomada:
+- Nao adicionar `try/catch` repetido dentro dos controllers.
+- Centralizar tratamento com `@RestControllerAdvice`.
+
+Tratamentos implementados no `GlobalExceptionHandler`:
+- `BusinessException` retorna `400 Bad Request`
+- `MethodArgumentNotValidException` retorna `400 Bad Request` com mapa de campos
+- `MethodArgumentTypeMismatchException` retorna `400 Bad Request`
+- `HttpMessageNotReadableException` retorna `400 Bad Request`
+- `NoResourceFoundException` retorna `404 Not Found`
+- `Exception` retorna `500 Internal Server Error` como fallback
+
+Formato atual:
+- respostas JSON padronizadas
+- status HTTP adequado por tipo de erro
+- mensagens de regra de negocio vindas de `BusinessException`
+- rota inexistente, como `GET /`, retorna `404` com mensagem
+  `Nao existe endpoint para este caminho`
+
+Build verificado:
+- `mvn test` executado em 2026-09-06 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 29, Failures: 0, Errors: 0`.
+
 ## Services
 
 ### UserService
@@ -368,6 +708,8 @@ Metodos:
 - `updateUser(UUID id, User user)`
 - `deleteUser(UUID id)`
 - `setActive(UUID id, Boolean active)`
+- `changeOwnPassword(String email, String currentPassword, String newPassword)`
+- `resetPassword(UUID id, String newPassword)`
 
 Regras atuais:
 - nao permite email duplicado ao criar
@@ -377,13 +719,16 @@ Regras atuais:
 - `listUsers()` retorna somente usuarios ativos via `findByActiveTrue()`
 - `updateUser` valida `username` e `email` obrigatorios
 - `updateUser` valida duplicidade de `email` e `username`, ignorando o proprio usuario
-- `updateUser` altera username, email, password e role
+- `updateUser` altera username, email e role
 - `deleteUser` nao apaga fisicamente; define `active=false`
+- `changeOwnPassword` busca usuario pelo email autenticado, valida usuario
+  ativo, confere senha atual com BCrypt e salva a nova senha criptografada
+- `resetPassword` redefine senha de usuario pelo ID sem exigir senha atual;
+  o endpoint correspondente e restrito a `MANAGER`
 
 Atencoes:
-- senha ainda e salva como texto recebido, sem criptografia
-- quando implementar autenticacao, adicionar `PasswordEncoder` antes de login/JWT
-- avaliar validacoes de `password` e `role` no update/criacao quando DTOs forem criados
+- criacao de usuario e alteracao/reset de senha sempre salvam senha com BCrypt
+- update geral de usuario nao altera senha
 
 ### ClientService
 
@@ -396,14 +741,16 @@ Implementacao:
 Metodos:
 - `createClient(UUID userId, Client client)`
 - `listByUser(UUID userId)`
-- `findById(UUID id)`
-- `updateClient(UUID id, Client client)`
+- `findById(UUID userId, UUID clientId)`
+- `updateClient(UUID userId, UUID clientId, Client client)`
 - `deleteClient(UUID userId, UUID clientId)`
 
 Regras atuais:
 - cliente precisa pertencer a um usuario existente
 - nao permite cadastrar cliente com mesmo telefone para o mesmo usuario
 - lista clientes por usuario
+- `findById`, `updateClient` e `deleteClient` validam se o cliente pertence ao
+  usuario informado
 - `updateClient` valida `name` e `phone` obrigatorios
 - `updateClient` valida duplicidade de telefone para o mesmo usuario,
   ignorando o proprio cliente
@@ -411,7 +758,6 @@ Regras atuais:
 - `deleteClient` valida se o cliente pertence ao usuario antes de deletar
 
 Atencoes:
-- ainda nao ha DTOs/Bean Validation
 - avaliar se deletar cliente deve apagar agendamentos ou se deve bloquear
   delete quando houver historico
 
@@ -427,7 +773,7 @@ Metodos:
 - `createAppointment(UUID userId, UUID clientId, Appointment appointment)`
 - `updateAppointment(UUID userId, Appointment appointment)`
 - `listAppointmentsByDate(UUID userId, LocalDate date)`
-- `deleteAppointment(UUID id)`
+- `deleteAppointment(UUID userId, UUID appointmentId)`
 
 Regras atuais de criacao:
 - `startTime`, `endTime` e `appointmentDate` sao obrigatorios
@@ -448,10 +794,10 @@ Regras atuais de update:
 - valida conflito usando usuario/data/startTime existentes e novo `endTime`
 - atualiza somente `endTime` e `service`
 
-Atencoes importantes:
-- `deleteAppointment(UUID id)` ainda nao recebe `userId`, entao ainda nao garante
-  que o agendamento deletado pertence ao usuario logado.
-- Futuramente, considerar mudar para `deleteAppointment(UUID userId, UUID appointmentId)`.
+Regra atual de delete:
+- busca agendamento por `appointmentId`
+- valida se o agendamento pertence ao `userId` informado
+- deleta somente depois da validacao de pertencimento
 
 ## Exception
 
@@ -461,85 +807,271 @@ Classe:
 Estado atual:
 - `RuntimeException` simples com construtor recebendo `message`.
 
-Ainda nao existe:
-- `@RestControllerAdvice`
-- `@ExceptionHandler`
-- padronizacao de resposta de erro
-- status HTTP especifico por tipo de erro
+Tratamento atual:
+- `BusinessException` e capturada por `GlobalExceptionHandler`
+- resposta padronizada com status `400`
+
+## Authentication And JWT
+
+Autenticacao e JWT implementados em 2026-09-22.
+
+Arquivos principais:
+- `auth.dto.LoginRequest`
+- `auth.dto.LoginResponse`
+- `auth.controller.AuthController`
+- `auth.service.AuthService`
+- `auth.service.AuthServiceImpl`
+- `auth.service.JwtService`
+- `config.JwtAuthenticationFilter`
+- `config.SecurityConfig`
+
+Fluxo atual:
+- `POST /auth/login` recebe `email` e `password`
+- o usuario e buscado por email
+- senha e validada com `passwordEncoder.matches(...)`
+- usuario inativo nao consegue logar
+- login valido retorna `accessToken` e `refreshToken`
+- rotas protegidas exigem `Authorization: Bearer <token>`
+
+Endpoints publicos:
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `/h2-console/**`
+- `/swagger-ui/**`
+- `/v3/api-docs/**`
+
+Endpoints protegidos:
+- demais endpoints de users, clients e appointments
+- `POST /users`, `PATCH /users/{id}/password` e `DELETE /users/{id}` exigem
+  role `MANAGER`
+
+Configuracao:
+- `timegrid.jwt.secret=${JWT_SECRET:change-this-secret-before-production-timegrid-jwt-secret}`
+- `timegrid.jwt.expiration-minutes=${JWT_EXPIRATION_MINUTES:60}`
+- `timegrid.jwt.refresh-expiration-minutes=${JWT_REFRESH_EXPIRATION_MINUTES:1440}`
+
+Observacoes:
+- Login manual foi testado no Insomnia com sucesso.
+- Acesso a rotas protegidas sem token foi negado.
+- Acesso a rotas protegidas com token Bearer valido funcionou.
+- `POST /auth/refresh` gera novo access token mantendo o mesmo refresh token
+  ate ele expirar.
+- Em producao, definir `JWT_SECRET` por variavel de ambiente com valor forte.
 
 ## Tests
 
-Existe apenas:
-`TimegridBackendApplicationTests`
+Testes unitarios de services criados em 2026-09-06 com JUnit 5 e Mockito.
+Testes de controllers e do tratamento global de excecoes criados em
+2026-09-15 com MockMvc standalone.
+Testes de autenticacao e JWT criados em 2026-09-22.
+Testes de refresh token criados em 2026-09-23.
 
-Teste atual:
+Teste de contexto:
 - `contextLoads()`
 
+Arquivos:
+- `appointment.service.AppointmentServiceImplTest`
+- `appointment.controller.AppointmentControllerTest`
+- `client.service.ClientServiceImplTest`
+- `client.controller.ClientControllerTest`
+- `user.service.UserServiceImplTest`
+- `user.controller.UserControllerTest`
+- `auth.service.AuthServiceImplTest`
+- `auth.service.JwtServiceTest`
+- `auth.controller.AuthControllerTest`
+- `config.SecurityConfigTest`
+- `exception.GlobalExceptionHandlerTest`
+- `TimegridBackendApplicationTests`
+
+Padrao adotado nos testes de service:
+- `@ExtendWith(MockitoExtension.class)`
+- repositories mockados com `@Mock`
+- service testado com `@InjectMocks`
+- sem `@SpringBootTest` nos testes unitarios de service
+- sem conexao com banco real nos testes unitarios de service
+
+Padrao adotado nos testes de controller:
+- `@ExtendWith(MockitoExtension.class)`
+- `MockMvcBuilders.standaloneSetup(...)`
+- services e mappers mockados com `@Mock`
+- `GlobalExceptionHandler` registrado com `.setControllerAdvice(...)`
+- sem subir contexto Spring completo
+- sem conexao com banco real
+
+`AppointmentServiceImplTest` cobre:
+- criacao de agendamento com sucesso
+- bloqueio de data passada
+- bloqueio de `startTime` maior que `endTime`
+- bloqueio de cliente que nao pertence ao usuario
+- bloqueio de conflito de horario
+- update alterando somente `endTime` e `service`
+- delete bloqueando agendamento de outro usuario
+
+`ClientServiceImplTest` cobre:
+- criacao de cliente com sucesso
+- bloqueio quando usuario nao existe
+- bloqueio de telefone duplicado na criacao
+- listagem de clientes por usuario
+- busca validando pertencimento
+- bloqueio de cliente de outro usuario
+- update de nome e telefone com sucesso
+- bloqueio de telefone duplicado no update
+- delete validando pertencimento
+
+`UserServiceImplTest` cobre:
+- criacao de usuario com sucesso
+- bloqueio de email duplicado
+- bloqueio de username duplicado
+- busca por ID
+- bloqueio de usuario inexistente
+- listagem somente de usuarios ativos
+- update com sucesso
+- bloqueio de username vazio no update
+- bloqueio de email duplicado no update
+- bloqueio de username duplicado no update
+- soft delete com `active=false`
+- `setActive` alterando status
+- troca da propria senha com sucesso
+- bloqueio de troca de senha quando senha atual nao confere
+- bloqueio de troca de senha quando usuario esta inativo
+- reset administrativo de senha
+
+`UserControllerTest` cobre:
+- criacao de usuario com status `201 Created`
+- validacao de request invalido com status `400`
+- busca por ID com sucesso
+- `BusinessException` padronizada pelo `GlobalExceptionHandler`
+- listagem de usuarios
+- update de usuario
+- validacao de update invalido com status `400`
+- delete com status `204 No Content`
+- alteracao de status ativo/inativo com `PATCH`
+- troca da propria senha com status `204 No Content`
+- validacao de troca de senha invalida com status `400`
+- reset administrativo de senha com status `204 No Content`
+- validacao de reset de senha invalido com status `400`
+
+`SecurityConfigTest` cobre:
+- `DELETE /users/{id}` bloqueado para `ADMIN`
+- `DELETE /users/{id}` permitido para `MANAGER`
+- `PATCH /users/{id}/password` bloqueado para `ADMIN`
+- `PATCH /users/me/password` permitido para usuario autenticado
+
+`ClientControllerTest` cobre:
+- criacao de cliente com status `201 Created`
+- validacao de request invalido com status `400`
+- listagem de clientes por usuario
+- busca de cliente por ID validando rota com `userId`
+- `BusinessException` padronizada pelo `GlobalExceptionHandler`
+- update de cliente
+- delete com status `204 No Content`
+
+`AppointmentControllerTest` cobre:
+- criacao de agendamento com status `201 Created`
+- validacao de request invalido com status `400`
+- listagem de agendamentos por data
+- data invalida em query param com status `400`
+- update respeitando `AppointmentUpdateRequest`
+- `BusinessException` padronizada pelo `GlobalExceptionHandler`
+- delete com status `204 No Content`
+
+`GlobalExceptionHandlerTest` cobre:
+- `BusinessException` retornando `400 Bad Request`
+- `MethodArgumentNotValidException` retornando `400 Bad Request` com mapa `fields`
+- `MethodArgumentTypeMismatchException` retornando `400 Bad Request`
+- `HttpMessageNotReadableException` retornando `400 Bad Request`
+- `NoResourceFoundException` retornando `404 Not Found`
+- `Exception` generica retornando `500 Internal Server Error`
+
+`AuthServiceImplTest` cobre:
+- login com sucesso retornando access token e refresh token
+- bloqueio quando email nao existe
+- bloqueio quando usuario esta inativo
+- bloqueio quando senha nao confere
+- refresh com token valido retornando novo access token
+- bloqueio quando refresh token e invalido
+- bloqueio de refresh quando usuario esta inativo
+
+`AuthControllerTest` cobre:
+- login com sucesso retornando `accessToken` e `refreshToken`
+- validacao de request invalido com status `400`
+- `BusinessException` padronizada pelo `GlobalExceptionHandler`
+- refresh com sucesso retornando novo access token
+- validacao de refresh request invalido com status `400`
+
+`JwtServiceTest` cobre:
+- geracao de access token com email do usuario como subject
+- geracao de refresh token com email do usuario como subject
+- access token recusando refresh token
+- token invalido retornando `Optional.empty()`
+
+Build verificado:
+- `mvn test` executado em 2026-10-12 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 86, Failures: 0, Errors: 0`.
+- Testes tambem foram rodados pelo usuario no IntelliJ com sucesso.
+
 Ainda nao ha testes de:
-- services
 - repositories
-- conflito de horario
-- horarios encostados como conflito
-- cliente que nao pertence ao usuario
-- soft delete de usuario
-- delete de cliente com pertencimento
-- seguranca/autenticacao
+- migrations Flyway ja existem, mas ainda nao ha testes especificos para elas
 
 ## Current Implementation Status
+
+Estado geral:
+- API backend finalizada para a aula atual, com autenticacao, autorizacao,
+  refresh token, Swagger/OpenAPI, CORS, README e testes automatizados.
 
 Implementado:
 - entidades principais
 - enums
 - repositories
 - services
+- DTOs de request/response
+- mappers manuais
+- controllers REST
+- handler global de excecoes
 - regras iniciais de negocio
 - validacoes adicionais em updates
 - soft delete de usuario
 - delete de cliente com validacao de pertencimento
 - listagem de usuarios ativos
-- configuracao basica de seguranca liberando tudo
+- configuracao de seguranca stateless com JWT
+- `PasswordEncoder` com BCrypt
+- login em `/auth/login`
+- refresh token em `/auth/refresh`
+- filtro JWT para autenticar requisicoes com Bearer token
+- autorizacao de criacao de usuario restrita a `MANAGER`
+- autorizacao de delete de usuario restrita a `MANAGER`
+- troca de senha com validacao da senha atual
+- reset administrativo de senha restrito a `MANAGER`
+- CORS configurado para o futuro frontend Angular
+- Swagger/OpenAPI configurado com esquema Bearer JWT
+- `UserDetailsService` baseado em `UserRepository`
 - perfis `dev` e `test`
 - PostgreSQL no desenvolvimento
 - H2 para teste
+- migrations Flyway com schema inicial, seed e conversao de senhas seedadas para BCrypt
+- testes unitarios dos services principais com JUnit 5 e Mockito
+- testes dos controllers REST principais com MockMvc standalone
+- testes do `GlobalExceptionHandler` para respostas de erro padronizadas
+- testes de autenticacao e JWT
+- README atualizado para o estado atual da API
 - constraint unica parcial para agendamento por usuario/data/horario inicial
 - `pom.xml` limpo, sem dependencias nao usadas como Data REST, GraphQL,
   WebClient, RestClient, JDBC e Spring AI
 
 Ainda pendente:
-- DTOs de request/response
-- mappers manuais
-- controllers REST
-- Bean Validation nos DTOs
-- handler global de excecoes
-- `PasswordEncoder`
-- autenticacao e autorizacao reais
-- JWT
-- migrations Flyway
-- testes de regra de negocio
+- testes de repositories, se forem necessarios
 - configuracao de producao
-- documentacao README alinhada ao estado real do codigo
+- validacao manual final do Swagger no navegador
 
 ## Recommended Next Path
 
 Ordem recomendada para continuar:
 
-1. Criar DTOs por dominio.
-2. Criar mappers manuais por dominio.
-3. Criar controllers REST usando os services existentes.
-4. Criar `GlobalExceptionHandler` com `@RestControllerAdvice`.
-5. Criar testes dos services, principalmente regras de negocio.
-6. Adicionar `PasswordEncoder`.
-7. Preparar fluxo de autenticacao.
-8. Implementar JWT somente depois que o restante estiver estavel.
-
-DTOs sugeridos inicialmente:
-- `UserRequest`
-- `UserResponse`
-- `ClientRequest`
-- `ClientResponse`
-- `AppointmentRequest`
-- `AppointmentResponse`
-- `AppointmentUpdateRequest`
+1. Rodar a aplicacao pelo IntelliJ e validar Swagger manualmente em `/swagger-ui/index.html`.
+2. Testar manualmente login, refresh token e rota `POST /users` com roles `ADMIN` e `MANAGER`.
+3. Externalizar configuracoes sensiveis para ambiente antes de producao.
+4. Avaliar testes de repositories somente se alguma regra passar a depender de comportamento real do banco.
 
 Organizacao sugerida:
 
@@ -588,27 +1120,34 @@ Banco
 ```
 
 Sugestao educativa:
-- comecar por `Client`, porque e mais simples
-- depois `User`
-- por ultimo `Appointment`, porque envolve usuario, cliente, data, horarios e conflito
+- aula atual fecha a API backend com refresh token, roles, Swagger, CORS e README.
+- proxima etapa natural e iniciar o frontend em Angular com Tailwind.
 
 ## Development Rules For Future Agents
 
 1. Manter acesso somente leitura, salvo se o usuario pedir explicitamente para editar arquivos.
 2. Antes de propor mudancas, ler o codigo atual e respeitar a estrutura existente.
-3. Nao assumir que JWT, controllers ou DTOs ja existem.
+3. JWT ja existe e faz parte do fluxo atual da API; antes de alterar
+   autenticacao, ler `auth`, `config.SecurityConfig` e os testes relacionados.
 4. Nao prometer comportamento que ainda nao esta implementado.
 5. Priorizar melhorias incrementais e educativas, explicando o motivo das mudancas.
 6. Evitar refatoracoes grandes sem necessidade.
 7. Preservar a divisao atual por dominio: `user`, `client`, `appointment`.
-8. Preferir DTOs para entrada/saida de API quando os controllers forem criados.
-9. Preferir mappers manuais inicialmente, para manter o aprendizado claro.
+8. Usar os DTOs criados para entrada/saida de API nos controllers existentes.
+9. Usar os mappers manuais ja criados, mantendo o aprendizado claro.
 10. Nao colocar regras de negocio complexas dentro das entidades.
 11. Usar `BusinessException` para regras de negocio ate existir tratamento global melhor.
 12. Ao sugerir endpoints, usar os services existentes em vez de acessar repositories diretamente nos controllers.
-13. Ao sugerir autenticacao, implementar senha criptografada antes de qualquer login real.
+13. Autenticacao real ja existe com senha BCrypt, access token e refresh token.
+    Manter esse fluxo ao propor ajustes.
 14. Ao trabalhar com agendamentos, respeitar a regra de que horarios encostados sao conflito.
 15. Ao trabalhar com update de agendamento, lembrar que ele altera somente `endTime` e `service`.
 16. Ao sugerir delete de appointment, preferir adicionar `userId` para validar pertencimento.
-17. Ao sugerir testes, comecar pelos services, especialmente `AppointmentServiceImpl`.
-18. JWT deve ficar para depois de DTOs, mappers, controllers, exception handler e testes basicos.
+17. Flyway ja esta ativo no perfil `dev`; novas alteracoes de banco devem ser
+    feitas por novas migrations versionadas.
+18. Testes de services, controllers, exception handler, autenticacao e JWT ja
+    existem; novos testes devem acompanhar mudancas reais de comportamento.
+19. A API backend esta fechada para a etapa atual; proximas mudancas devem ser
+    incrementais, como validacao manual do Swagger, ajustes de producao ou
+    preparacao para o frontend.
+20. Nao espalhar `try/catch` pelos controllers; centralizar tratamento com `@RestControllerAdvice`.
