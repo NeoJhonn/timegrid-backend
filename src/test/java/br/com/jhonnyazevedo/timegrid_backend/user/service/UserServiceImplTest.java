@@ -134,22 +134,21 @@ class UserServiceImplTest {
         User request = createUserRequest();
         request.setUsername("john_updated");
         request.setEmail("john.updated@timegrid.test");
-        request.setPassword("654321");
+        request.setPassword("password-ignored-on-update");
         request.setRole(UserRole.ADMIN);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.empty());
         when(userRepository.findByUsername(request.getUsername())).thenReturn(Optional.empty());
-        when(passwordEncoder.encode("654321")).thenReturn("encoded-updated-password");
         when(userRepository.save(user)).thenReturn(user);
 
         User updatedUser = userService.updateUser(userId, request);
 
         assertEquals("john_updated", updatedUser.getUsername());
         assertEquals("john.updated@timegrid.test", updatedUser.getEmail());
-        assertEquals("encoded-updated-password", updatedUser.getPassword());
+        assertEquals("123456", updatedUser.getPassword());
         assertEquals(UserRole.ADMIN, updatedUser.getRole());
-        verify(passwordEncoder).encode("654321");
+        verify(passwordEncoder, never()).encode("password-ignored-on-update");
         verify(userRepository).save(user);
     }
 
@@ -226,6 +225,57 @@ class UserServiceImplTest {
         userService.setActive(userId, false);
 
         assertFalse(user.getActive());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void changeOwnPassword_shouldUpdatePasswordWhenCurrentPasswordMatches() {
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("123456", user.getPassword())).thenReturn(true);
+        when(passwordEncoder.encode("new-password")).thenReturn("encoded-new-password");
+
+        userService.changeOwnPassword(user.getEmail(), "123456", "new-password");
+
+        assertEquals("encoded-new-password", user.getPassword());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void changeOwnPassword_shouldThrowBusinessExceptionWhenCurrentPasswordDoesNotMatch() {
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrong-password", user.getPassword())).thenReturn(false);
+
+        assertThrows(
+                BusinessException.class,
+                () -> userService.changeOwnPassword(user.getEmail(), "wrong-password", "new-password")
+        );
+
+        verify(userRepository, never()).save(user);
+    }
+
+    @Test
+    void changeOwnPassword_shouldThrowBusinessExceptionWhenUserIsInactive() {
+        user.setActive(false);
+
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+
+        assertThrows(
+                BusinessException.class,
+                () -> userService.changeOwnPassword(user.getEmail(), "123456", "new-password")
+        );
+
+        verify(passwordEncoder, never()).matches("123456", user.getPassword());
+        verify(userRepository, never()).save(user);
+    }
+
+    @Test
+    void resetPassword_shouldUpdatePasswordWithoutCurrentPassword() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("manager-defined-password")).thenReturn("encoded-manager-defined-password");
+
+        userService.resetPassword(userId, "manager-defined-password");
+
+        assertEquals("encoded-manager-defined-password", user.getPassword());
         verify(userRepository).save(user);
     }
 

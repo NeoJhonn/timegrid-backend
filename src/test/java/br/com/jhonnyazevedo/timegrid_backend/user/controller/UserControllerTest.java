@@ -3,7 +3,9 @@ package br.com.jhonnyazevedo.timegrid_backend.user.controller;
 import br.com.jhonnyazevedo.timegrid_backend.enums.UserRole;
 import br.com.jhonnyazevedo.timegrid_backend.exception.BusinessException;
 import br.com.jhonnyazevedo.timegrid_backend.exception.GlobalExceptionHandler;
+import br.com.jhonnyazevedo.timegrid_backend.user.dto.UserRequest;
 import br.com.jhonnyazevedo.timegrid_backend.user.dto.UserResponse;
+import br.com.jhonnyazevedo.timegrid_backend.user.dto.UserUpdateRequest;
 import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import br.com.jhonnyazevedo.timegrid_backend.user.mapper.UserMapper;
 import br.com.jhonnyazevedo.timegrid_backend.user.service.UserService;
@@ -84,7 +86,7 @@ class UserControllerTest {
                 }
                 """;
 
-        when(userMapper.toEntity(any())).thenReturn(user);
+        when(userMapper.toEntity(any(UserRequest.class))).thenReturn(user);
         when(userService.createUser(user)).thenReturn(user);
         when(userMapper.toResponse(user)).thenReturn(userResponse);
 
@@ -163,7 +165,6 @@ class UserControllerTest {
                 {
                   "username": "john_updated",
                   "email": "john.updated@timegrid.test",
-                  "password": "654321",
                   "role": "ADMIN"
                 }
                 """;
@@ -184,7 +185,7 @@ class UserControllerTest {
                 null
         );
 
-        when(userMapper.toEntity(any())).thenReturn(updatedUser);
+        when(userMapper.toEntity(any(UserUpdateRequest.class))).thenReturn(updatedUser);
         when(userService.updateUser(eq(userId), eq(updatedUser))).thenReturn(updatedUser);
         when(userMapper.toResponse(updatedUser)).thenReturn(updatedResponse);
 
@@ -194,6 +195,104 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("john_updated"))
                 .andExpect(jsonPath("$.role").value("ADMIN"));
+    }
+
+    @Test
+    void updateUser_shouldReturnBadRequestWhenRequestIsInvalid() throws Exception {
+        String requestBody = """
+                {
+                  "username": "",
+                  "email": "invalid-email",
+                  "role": null
+                }
+                """;
+
+        mockMvc.perform(put("/users/{id}", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.fields.username").exists())
+                .andExpect(jsonPath("$.fields.email").exists())
+                .andExpect(jsonPath("$.fields.role").exists())
+                .andExpect(jsonPath("$.fields.password").doesNotExist());
+
+        verify(userService, never()).updateUser(any(), any());
+    }
+
+    @Test
+    void changeOwnPassword_shouldReturnNoContent() throws Exception {
+        String requestBody = """
+                {
+                  "currentPassword": "123456",
+                  "newPassword": "new-password"
+                }
+                """;
+
+        mockMvc.perform(patch("/users/me/password")
+                        .principal(() -> "john.manager@timegrid.test")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isNoContent());
+
+        verify(userService).changeOwnPassword(
+                "john.manager@timegrid.test",
+                "123456",
+                "new-password"
+        );
+    }
+
+    @Test
+    void changeOwnPassword_shouldReturnBadRequestWhenRequestIsInvalid() throws Exception {
+        String requestBody = """
+                {
+                  "currentPassword": "",
+                  "newPassword": ""
+                }
+                """;
+
+        mockMvc.perform(patch("/users/me/password")
+                        .principal(() -> "john.manager@timegrid.test")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fields.currentPassword").exists())
+                .andExpect(jsonPath("$.fields.newPassword").exists());
+
+        verify(userService, never()).changeOwnPassword(any(), any(), any());
+    }
+
+    @Test
+    void resetPassword_shouldReturnNoContent() throws Exception {
+        String requestBody = """
+                {
+                  "newPassword": "manager-defined-password"
+                }
+                """;
+
+        mockMvc.perform(patch("/users/{id}/password", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isNoContent());
+
+        verify(userService).resetPassword(userId, "manager-defined-password");
+    }
+
+    @Test
+    void resetPassword_shouldReturnBadRequestWhenRequestIsInvalid() throws Exception {
+        String requestBody = """
+                {
+                  "newPassword": ""
+                }
+                """;
+
+        mockMvc.perform(patch("/users/{id}/password", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fields.newPassword").exists());
+
+        verify(userService, never()).resetPassword(any(), any());
     }
 
     @Test

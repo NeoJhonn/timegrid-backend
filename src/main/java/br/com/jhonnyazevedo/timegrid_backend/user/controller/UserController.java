@@ -1,7 +1,10 @@
 package br.com.jhonnyazevedo.timegrid_backend.user.controller;
 
+import br.com.jhonnyazevedo.timegrid_backend.user.dto.ChangePasswordRequest;
+import br.com.jhonnyazevedo.timegrid_backend.user.dto.ResetPasswordRequest;
 import br.com.jhonnyazevedo.timegrid_backend.user.dto.UserRequest;
 import br.com.jhonnyazevedo.timegrid_backend.user.dto.UserResponse;
+import br.com.jhonnyazevedo.timegrid_backend.user.dto.UserUpdateRequest;
 import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import br.com.jhonnyazevedo.timegrid_backend.user.mapper.UserMapper;
 import br.com.jhonnyazevedo.timegrid_backend.user.service.UserService;
@@ -57,14 +60,34 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Atualiza usuario", description = "Atualiza username, email, senha e role de um usuario existente.")
+    @Operation(summary = "Atualiza usuario", description = "Atualiza username, email e role de um usuario existente.")
     public ResponseEntity<UserResponse> updateUser(
             @PathVariable UUID id,
-            @RequestBody @Valid UserRequest request
+            @RequestBody @Valid UserUpdateRequest request
     ) {
         User user = userMapper.toEntity(request);
         User updatedUser = userService.updateUser(id, user);
         return ResponseEntity.ok(userMapper.toResponse(updatedUser));
+    }
+
+    @PatchMapping("/me/password")
+    @Operation(summary = "Altera a propria senha", description = "Altera a senha do usuario autenticado validando a senha atual.")
+    public ResponseEntity<Void> changeOwnPassword(
+            java.security.Principal principal,
+            @RequestBody @Valid ChangePasswordRequest request
+    ) {
+        userService.changeOwnPassword(principal.getName(), request.currentPassword(), request.newPassword());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/password")
+    @Operation(summary = "Redefine senha de usuario", description = "Redefine a senha de um usuario. Endpoint restrito a usuarios com role MANAGER.")
+    public ResponseEntity<Void> resetPassword(
+            @PathVariable UUID id,
+            @RequestBody @Valid ResetPasswordRequest request
+    ) {
+        userService.resetPassword(id, request.newPassword());
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")

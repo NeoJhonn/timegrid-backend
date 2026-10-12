@@ -72,7 +72,6 @@ public class UserServiceImpl implements UserService {
 
         existing.setUsername(user.getUsername());
         existing.setEmail(user.getEmail());
-        existing.setPassword(passwordEncoder.encode(user.getPassword()));
         existing.setRole(user.getRole());
 
         return userRepository.save(existing);
@@ -90,6 +89,30 @@ public class UserServiceImpl implements UserService {
     public void setActive(UUID id, Boolean active) {
         User user = findById(id);
         user.setActive(active);
+        userRepository.save(user);
+    }
+
+    @Override
+    public void changeOwnPassword(String email, String currentPassword, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException("Usuario nao encontrado."));
+
+        if (!Boolean.TRUE.equals(user.getActive())) {
+            throw new BusinessException("Usuario inativo.");
+        }
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BusinessException("Senha atual invalida.");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    @Override
+    public void resetPassword(UUID id, String newPassword) {
+        User user = findById(id);
+        user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
 }

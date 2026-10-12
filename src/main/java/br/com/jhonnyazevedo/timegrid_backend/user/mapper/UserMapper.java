@@ -2,6 +2,7 @@ package br.com.jhonnyazevedo.timegrid_backend.user.mapper;
 
 import br.com.jhonnyazevedo.timegrid_backend.user.dto.UserRequest;
 import br.com.jhonnyazevedo.timegrid_backend.user.dto.UserResponse;
+import br.com.jhonnyazevedo.timegrid_backend.user.dto.UserUpdateRequest;
 import br.com.jhonnyazevedo.timegrid_backend.user.entity.User;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,14 @@ public class UserMapper {
         user.setUsername(request.username());
         user.setEmail(request.email());
         user.setPassword(request.password());
+        user.setRole(request.role());
+        return user;
+    }
+
+    public User toEntity(UserUpdateRequest request) {
+        User user = new User();
+        user.setUsername(request.username());
+        user.setEmail(request.email());
         user.setRole(request.role());
         return user;
     }

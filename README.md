@@ -125,6 +125,8 @@ Usuários inativos não aparecem na listagem e não conseguem fazer login.
 - Geração de access token JWT
 - Geração de refresh token
 - Renovação de access token com refresh token
+- Troca da própria senha validando a senha atual
+- Reset administrativo de senha por usuário `MANAGER`
 - Cadastro de clientes
 - Listagem de clientes por usuário
 - Suporte ao autocomplete de clientes no agendamento por meio da listagem de clientes do usuário
@@ -145,6 +147,7 @@ Usuários inativos não aparecem na listagem e não conseguem fazer login.
 - Segurança com autenticação JWT
 - Senhas criptografadas com BCrypt
 - Autorização por roles
+- Operações administrativas de usuário restritas a `MANAGER`
 - Sessão stateless
 - Validação de dados no backend
 - Tratamento global de exceções
@@ -226,6 +229,8 @@ Endpoints públicos:
 Endpoint restrito a `MANAGER`:
 
 - `POST /users`
+- `PATCH /users/{id}/password`
+- `DELETE /users/{id}`
 
 Demais endpoints exigem autenticação via JWT.
 
@@ -242,7 +247,16 @@ GET /users/{id}
 PUT /users/{id}
 DELETE /users/{id}
 PATCH /users/{id}/active?active=true
+PATCH /users/me/password
+PATCH /users/{id}/password
 ```
+
+Observações:
+
+- `PUT /users/{id}` atualiza dados cadastrais: username, email e role.
+- `PATCH /users/me/password` altera a própria senha e exige a senha atual.
+- `PATCH /users/{id}/password` redefine senha de usuário e é restrito a `MANAGER`.
+- `DELETE /users/{id}` realiza soft delete e é restrito a `MANAGER`.
 
 ### Clientes
 
@@ -440,7 +454,7 @@ A suíte de testes cobre:
 ```text
 mvn test
 BUILD SUCCESS
-Tests run: 73, Failures: 0, Errors: 0
+Tests run: 86, Failures: 0, Errors: 0
 ```
 
 Ainda não há testes específicos de repositories.
@@ -460,6 +474,8 @@ Implementado:
 - Tratamento global de exceções
 - Regras iniciais de negócio
 - Soft delete de usuário
+- Troca de senha com validação da senha atual
+- Reset administrativo de senha por `MANAGER`
 - Validação de pertencimento entre usuário, cliente e agendamento
 - Autenticação com JWT
 - Refresh token

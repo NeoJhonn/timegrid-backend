@@ -112,6 +112,8 @@ Estado atual:
 - `POST /auth/refresh` liberado
 - Swagger/OpenAPI liberado em `/swagger-ui/**` e `/v3/api-docs/**`
 - `POST /users` restrito a usuarios com role `MANAGER`
+- `PATCH /users/{id}/password` restrito a usuarios com role `MANAGER`
+- `DELETE /users/{id}` restrito a usuarios com role `MANAGER`
 - demais rotas exigem JWT no header `Authorization: Bearer <token>`
 
 Importante:
@@ -457,11 +459,25 @@ Validacoes:
 Importante:
 - `UserResponse` nao retorna `password`.
 
+`UserUpdateRequest` contem:
+- `username`
+- `email`
+- `role`
+
+Importante:
+- update geral de usuario nao altera senha.
+- troca/reset de senha usam endpoints proprios.
+
+DTOs de senha:
+- `ChangePasswordRequest`: `currentPassword`, `newPassword`
+- `ResetPasswordRequest`: `newPassword`
+
 Mapper:
 `user.mapper.UserMapper`
 
 Metodos:
 - `User toEntity(UserRequest request)`
+- `User toEntity(UserUpdateRequest request)`
 - `UserResponse toResponse(User user)`
 - `List<UserResponse> toResponseList(List<User> users)`
 
@@ -581,11 +597,20 @@ Endpoints:
 - `PUT /users/{id}`
 - `DELETE /users/{id}`
 - `PATCH /users/{id}/active?active=true`
+- `PATCH /users/me/password`
+- `PATCH /users/{id}/password`
 
 Observacoes:
 - Usa `UserRequest`, `UserResponse` e `UserMapper`.
+- `PUT /users/{id}` usa `UserUpdateRequest` e atualiza somente username,
+  email e role.
 - `DELETE /users/{id}` chama soft delete via `UserService.deleteUser`.
+- `DELETE /users/{id}` e restrito a `MANAGER`.
 - `PATCH /users/{id}/active` chama `UserService.setActive`.
+- `PATCH /users/me/password` troca a senha do usuario autenticado validando a
+  senha atual.
+- `PATCH /users/{id}/password` redefine senha de usuario e e restrito a
+  `MANAGER`.
 
 ### ClientController
 
@@ -680,6 +705,8 @@ Metodos:
 - `updateUser(UUID id, User user)`
 - `deleteUser(UUID id)`
 - `setActive(UUID id, Boolean active)`
+- `changeOwnPassword(String email, String currentPassword, String newPassword)`
+- `resetPassword(UUID id, String newPassword)`
 
 Regras atuais:
 - nao permite email duplicado ao criar
@@ -689,13 +716,16 @@ Regras atuais:
 - `listUsers()` retorna somente usuarios ativos via `findByActiveTrue()`
 - `updateUser` valida `username` e `email` obrigatorios
 - `updateUser` valida duplicidade de `email` e `username`, ignorando o proprio usuario
-- `updateUser` altera username, email, password e role
+- `updateUser` altera username, email e role
 - `deleteUser` nao apaga fisicamente; define `active=false`
+- `changeOwnPassword` busca usuario pelo email autenticado, valida usuario
+  ativo, confere senha atual com BCrypt e salva a nova senha criptografada
+- `resetPassword` redefine senha de usuario pelo ID sem exigir senha atual;
+  o endpoint correspondente e restrito a `MANAGER`
 
 Atencoes:
-- senha ainda e salva como texto recebido, sem criptografia
-- quando implementar autenticacao, adicionar `PasswordEncoder` antes de login/JWT
-- avaliar validacoes de `password` e `role` no update/criacao quando DTOs forem criados
+- criacao de usuario e alteracao/reset de senha sempre salvam senha com BCrypt
+- update geral de usuario nao altera senha
 
 ### ClientService
 
@@ -797,20 +827,25 @@ Fluxo atual:
 - o usuario e buscado por email
 - senha e validada com `passwordEncoder.matches(...)`
 - usuario inativo nao consegue logar
-- login valido retorna um JWT no campo `token`
+- login valido retorna `accessToken` e `refreshToken`
 - rotas protegidas exigem `Authorization: Bearer <token>`
 
 Endpoints publicos:
 - `POST /auth/login`
-- `POST /users`
+- `POST /auth/refresh`
 - `/h2-console/**`
+- `/swagger-ui/**`
+- `/v3/api-docs/**`
 
 Endpoints protegidos:
 - demais endpoints de users, clients e appointments
+- `POST /users`, `PATCH /users/{id}/password` e `DELETE /users/{id}` exigem
+  role `MANAGER`
 
 Configuracao:
 - `timegrid.jwt.secret=${JWT_SECRET:change-this-secret-before-production-timegrid-jwt-secret}`
 - `timegrid.jwt.expiration-minutes=${JWT_EXPIRATION_MINUTES:60}`
+- `timegrid.jwt.refresh-expiration-minutes=${JWT_REFRESH_EXPIRATION_MINUTES:1440}`
 
 Observacoes:
 - Login manual foi testado no Insomnia com sucesso.
@@ -841,6 +876,7 @@ Arquivos:
 - `auth.service.AuthServiceImplTest`
 - `auth.service.JwtServiceTest`
 - `auth.controller.AuthControllerTest`
+- `config.SecurityConfigTest`
 - `exception.GlobalExceptionHandlerTest`
 - `TimegridBackendApplicationTests`
 
@@ -892,6 +928,10 @@ Padrao adotado nos testes de controller:
 - bloqueio de username duplicado no update
 - soft delete com `active=false`
 - `setActive` alterando status
+- troca da propria senha com sucesso
+- bloqueio de troca de senha quando senha atual nao confere
+- bloqueio de troca de senha quando usuario esta inativo
+- reset administrativo de senha
 
 `UserControllerTest` cobre:
 - criacao de usuario com status `201 Created`
@@ -900,8 +940,19 @@ Padrao adotado nos testes de controller:
 - `BusinessException` padronizada pelo `GlobalExceptionHandler`
 - listagem de usuarios
 - update de usuario
+- validacao de update invalido com status `400`
 - delete com status `204 No Content`
 - alteracao de status ativo/inativo com `PATCH`
+- troca da propria senha com status `204 No Content`
+- validacao de troca de senha invalida com status `400`
+- reset administrativo de senha com status `204 No Content`
+- validacao de reset de senha invalido com status `400`
+
+`SecurityConfigTest` cobre:
+- `DELETE /users/{id}` bloqueado para `ADMIN`
+- `DELETE /users/{id}` permitido para `MANAGER`
+- `PATCH /users/{id}/password` bloqueado para `ADMIN`
+- `PATCH /users/me/password` permitido para usuario autenticado
 
 `ClientControllerTest` cobre:
 - criacao de cliente com status `201 Created`
@@ -952,8 +1003,8 @@ Padrao adotado nos testes de controller:
 - token invalido retornando `Optional.empty()`
 
 Build verificado:
-- `mvn test` executado em 2026-09-23 com sucesso.
-- Resultado: `BUILD SUCCESS`, `Tests run: 73, Failures: 0, Errors: 0`.
+- `mvn test` executado em 2026-10-12 com sucesso.
+- Resultado: `BUILD SUCCESS`, `Tests run: 86, Failures: 0, Errors: 0`.
 - Testes tambem foram rodados pelo usuario no IntelliJ com sucesso.
 
 Ainda nao ha testes de:
@@ -986,6 +1037,9 @@ Implementado:
 - refresh token em `/auth/refresh`
 - filtro JWT para autenticar requisicoes com Bearer token
 - autorizacao de criacao de usuario restrita a `MANAGER`
+- autorizacao de delete de usuario restrita a `MANAGER`
+- troca de senha com validacao da senha atual
+- reset administrativo de senha restrito a `MANAGER`
 - CORS configurado para o futuro frontend Angular
 - Swagger/OpenAPI configurado com esquema Bearer JWT
 - `UserDetailsService` baseado em `UserRepository`
