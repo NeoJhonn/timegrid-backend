@@ -448,7 +448,7 @@ Arquivos:
 Validacoes:
 - `username`: `@NotBlank`
 - `email`: `@NotBlank` e `@Email`
-- `password`: `@NotBlank`
+- `password`: `@NotBlank` e minimo de 8 caracteres
 - `role`: `@NotNull`
 
 `UserResponse` contem:
@@ -472,8 +472,8 @@ Importante:
 - troca/reset de senha usam endpoints proprios.
 
 DTOs de senha:
-- `ChangePasswordRequest`: `currentPassword`, `newPassword`
-- `ResetPasswordRequest`: `newPassword`
+- `ChangePasswordRequest`: `currentPassword`, `newPassword` com minimo de 8 caracteres
+- `ResetPasswordRequest`: `newPassword` com minimo de 8 caracteres
 
 Mapper:
 `user.mapper.UserMapper`
