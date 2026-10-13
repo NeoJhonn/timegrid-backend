@@ -421,7 +421,7 @@ Observação: a origem CORS usa apenas protocolo, domínio e porta. Caminhos com
 Perfil ativo padrão:
 
 ```properties
-spring.profiles.active=dev
+spring.profiles.active=${SPRING_PROFILES_ACTIVE:dev}
 ```
 
 Rodar os testes:
@@ -442,6 +442,32 @@ Variáveis de ambiente importantes:
 JWT_SECRET=defina-um-segredo-forte-em-producao
 JWT_EXPIRATION_MINUTES=60
 JWT_REFRESH_EXPIRATION_MINUTES=1440
+CORS_ALLOWED_ORIGINS=https://timegrid-frontend.vercel.app
+```
+
+### Railway
+
+No Railway, use o perfil de producao:
+
+```properties
+SPRING_PROFILES_ACTIVE=prod
+```
+
+O `application-prod.properties` espera as variaveis padrao do PostgreSQL do
+Railway:
+
+```properties
+PGHOST=${{Postgres.PGHOST}}
+PGPORT=${{Postgres.PGPORT}}
+PGDATABASE=${{Postgres.PGDATABASE}}
+PGUSER=${{Postgres.PGUSER}}
+PGPASSWORD=${{Postgres.PGPASSWORD}}
+```
+
+Tambem configure:
+
+```properties
+JWT_SECRET=defina-um-segredo-forte-em-producao
 CORS_ALLOWED_ORIGINS=https://timegrid-frontend.vercel.app
 ```
 

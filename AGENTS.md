@@ -8,7 +8,7 @@ repositories, services, regras de negocio, depois DTOs, mappers,
 controllers, tratamento global de excecoes, testes e, por ultimo,
 autenticacao/JWT.
 
-Atualizado em: 2026-09-23.
+Atualizado em: 2026-10-13.
 
 ## Current Workspace
 
@@ -74,7 +74,9 @@ Ainda nao existem:
 
 `application.properties`:
 - `spring.application.name=timegrid-backend`
-- perfil ativo atual: `dev`
+- perfil ativo atual: `${SPRING_PROFILES_ACTIVE:dev}`
+- localmente usa `dev` por padrao
+- em producao, definir `SPRING_PROFILES_ACTIVE=prod`
 
 `application-dev.properties`:
 - PostgreSQL local
@@ -94,6 +96,17 @@ Ainda nao existem:
   no PostgreSQL local do perfil `dev`
 
 `application-prod.properties`:
+- `server.port=${PORT:8080}` para deploy no Railway
+- PostgreSQL configurado por variaveis de ambiente do Railway:
+  - `PGHOST`
+  - `PGPORT`
+  - `PGDATABASE`
+  - `PGUSER`
+  - `PGPASSWORD`
+- `spring.jpa.hibernate.ddl-auto=validate`
+- `spring.jpa.show-sql=false`
+- `spring.flyway.baseline-on-migrate=true`
+- `timegrid.jwt.secret=${JWT_SECRET}` sem fallback em producao
 - CORS padrao de producao aponta para `https://timegrid-frontend.vercel.app`
 - valor pode ser sobrescrito por `CORS_ALLOWED_ORIGINS`
 
@@ -1005,7 +1018,7 @@ Padrao adotado nos testes de controller:
 - token invalido retornando `Optional.empty()`
 
 Build verificado:
-- `mvn test` executado em 2026-10-12 com sucesso.
+- `mvn test` executado em 2026-10-13 com sucesso.
 - Resultado: `BUILD SUCCESS`, `Tests run: 86, Failures: 0, Errors: 0`.
 - Testes tambem foram rodados pelo usuario no IntelliJ com sucesso.
 
@@ -1057,10 +1070,13 @@ Implementado:
 - constraint unica parcial para agendamento por usuario/data/horario inicial
 - `pom.xml` limpo, sem dependencias nao usadas como Data REST, GraphQL,
   WebClient, RestClient, JDBC e Spring AI
+- configuracao de producao para Railway/PostgreSQL via variaveis de ambiente
 
 Ainda pendente:
 - testes de repositories, se forem necessarios
-- configuracao de producao
+- configurar variaveis de ambiente no Railway
+- acompanhar logs do primeiro deploy em producao
+- testar login em producao
 - validacao manual final do Swagger no navegador
 
 ## Recommended Next Path
@@ -1069,7 +1085,7 @@ Ordem recomendada para continuar:
 
 1. Rodar a aplicacao pelo IntelliJ e validar Swagger manualmente em `/swagger-ui/index.html`.
 2. Testar manualmente login, refresh token e rota `POST /users` com roles `ADMIN` e `MANAGER`.
-3. Externalizar configuracoes sensiveis para ambiente antes de producao.
+3. Configurar variaveis sensiveis no Railway antes de subir producao.
 4. Avaliar testes de repositories somente se alguma regra passar a depender de comportamento real do banco.
 
 Organizacao sugerida:
