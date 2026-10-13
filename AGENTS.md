@@ -74,9 +74,9 @@ Ainda nao existem:
 
 `application.properties`:
 - `spring.application.name=timegrid-backend`
-- perfil ativo atual: `${SPRING_PROFILES_ACTIVE:dev}`
-- localmente usa `dev` por padrao
-- em producao, definir `SPRING_PROFILES_ACTIVE=prod`
+- perfil ativo atual: `${SPRING_PROFILES_ACTIVE:prod}`
+- em producao usa `prod` por padrao
+- localmente, definir `SPRING_PROFILES_ACTIVE=dev`
 
 `application-dev.properties`:
 - PostgreSQL local

@@ -421,7 +421,13 @@ Observação: a origem CORS usa apenas protocolo, domínio e porta. Caminhos com
 Perfil ativo padrão:
 
 ```properties
-spring.profiles.active=${SPRING_PROFILES_ACTIVE:dev}
+spring.profiles.active=${SPRING_PROFILES_ACTIVE:prod}
+```
+
+O perfil padrao da aplicacao e `prod`. Para rodar localmente, defina:
+
+```properties
+SPRING_PROFILES_ACTIVE=dev
 ```
 
 Rodar os testes:
