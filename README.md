@@ -171,8 +171,8 @@ Exemplo de request:
 
 ```json
 {
-  "email": "john.manager@timegrid.test",
-  "password": "123456"
+  "email": "jhonny.azevedo@gmail.com",
+  "password": "12345678"
 }
 ```
 
@@ -357,14 +357,14 @@ Migrations atuais:
 
 - `V1__create_initial_schema.sql`
 - `V2__seed_initial_data.sql`
-- `V3__encode_seed_user_passwords.sql`
 
-A `V3` converte as senhas seedadas em texto puro para BCrypt.
+O seed inicial cria somente o usuario `MANAGER` inicial da aplicacao, com senha
+ja armazenada em BCrypt.
 
-O login manual continua usando a senha original:
+O login inicial usa a senha:
 
 ```text
-123456
+12345678
 ```
 
 ---

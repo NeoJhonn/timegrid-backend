@@ -188,24 +188,23 @@ Migrations atuais:
   - usa `CREATE TABLE IF NOT EXISTS` para permitir transicao do banco dev que
     ja tinha tabelas geradas previamente pelo Hibernate
 - `V2__seed_initial_data.sql`
-  - adiciona 3 usuarios ficticios
-  - adiciona 3 clientes ficticios
-  - adiciona 6 agendamentos ficticios
-  - usa IDs fixos para facilitar testes manuais de endpoints
-- `V3__encode_seed_user_passwords.sql`
-  - atualiza senhas seedadas em texto puro (`123456`) para hash BCrypt
-  - permite login manual com a senha original `123456`
+  - adiciona somente o usuario inicial `MANAGER`
+  - usuario inicial: `Jhonny Alves de Souza Azevedo`
+  - email inicial: `jhonny.azevedo@gmail.com`
+  - senha inicial: `12345678`, armazenada em BCrypt
 
 Estado atual:
 - Flyway ja aplicou as migrations no PostgreSQL local `timegridDB`
-- schema atual no dev: versao `3`
+- schema atual no dev local antigo: versao `3`
+- para banco novo de producao, o schema sobe ate a versao `2`
 - Hibernate no perfil `dev` esta em `validate`, entao ele apenas valida o schema
   criado pelo Flyway
 - o seed foi confirmado pelo usuario no DBeaver
 
 Observacoes:
-- O seed original usava senhas em texto puro, mas a `V3` converte esses valores
-  para BCrypt.
+- A `V3` foi removida antes do deploy de producao para deixar o seed limpo.
+- Bancos locais que ja aplicaram a `V3` podem precisar ser recriados ou
+  reparados no Flyway depois dessa alteracao.
 - Para producao, revisar credenciais, seed e estrategia de migrations antes do
   primeiro deploy real.
 
@@ -1049,7 +1048,7 @@ Implementado:
 - perfis `dev` e `test`
 - PostgreSQL no desenvolvimento
 - H2 para teste
-- migrations Flyway com schema inicial, seed e conversao de senhas seedadas para BCrypt
+- migrations Flyway com schema inicial e seed do usuario `MANAGER` inicial
 - testes unitarios dos services principais com JUnit 5 e Mockito
 - testes dos controllers REST principais com MockMvc standalone
 - testes do `GlobalExceptionHandler` para respostas de erro padronizadas
