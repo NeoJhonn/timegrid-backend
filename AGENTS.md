@@ -106,6 +106,8 @@ Ainda nao existem:
 - `spring.jpa.hibernate.ddl-auto=validate`
 - `spring.jpa.show-sql=false`
 - `spring.flyway.baseline-on-migrate=true`
+- `springdoc.api-docs.enabled=false`
+- `springdoc.swagger-ui.enabled=false`
 - `timegrid.jwt.secret=${JWT_SECRET}` sem fallback em producao
 - CORS padrao de producao aponta para `https://timegrid-frontend.vercel.app`
 - valor pode ser sobrescrito por `CORS_ALLOWED_ORIGINS`
@@ -126,7 +128,8 @@ Estado atual:
 - `/h2-console/**` liberado
 - `POST /auth/login` liberado
 - `POST /auth/refresh` liberado
-- Swagger/OpenAPI liberado em `/swagger-ui/**` e `/v3/api-docs/**`
+- Swagger/OpenAPI liberado em `/swagger-ui/**` e `/v3/api-docs/**` nos perfis locais
+- Swagger/OpenAPI desabilitado no perfil `prod`
 - `POST /users` restrito a usuarios com role `MANAGER`
 - `PATCH /users/{id}/password` restrito a usuarios com role `MANAGER`
 - `DELETE /users/{id}` restrito a usuarios com role `MANAGER`
@@ -1056,7 +1059,8 @@ Implementado:
 - troca de senha com validacao da senha atual
 - reset administrativo de senha restrito a `MANAGER`
 - CORS configurado para o futuro frontend Angular
-- Swagger/OpenAPI configurado com esquema Bearer JWT
+- Swagger/OpenAPI configurado com esquema Bearer JWT nos perfis locais
+- Swagger/OpenAPI desabilitado no perfil `prod`
 - `UserDetailsService` baseado em `UserRepository`
 - perfis `dev` e `test`
 - PostgreSQL no desenvolvimento
@@ -1071,22 +1075,20 @@ Implementado:
 - `pom.xml` limpo, sem dependencias nao usadas como Data REST, GraphQL,
   WebClient, RestClient, JDBC e Spring AI
 - configuracao de producao para Railway/PostgreSQL via variaveis de ambiente
+- deploy em producao validado no Railway com PostgreSQL
+- login em producao testado no Insomnia
+- Swagger validado no navegador antes de ser desabilitado em producao
 
 Ainda pendente:
 - testes de repositories, se forem necessarios
-- configurar variaveis de ambiente no Railway
-- acompanhar logs do primeiro deploy em producao
-- testar login em producao
-- validacao manual final do Swagger no navegador
 
 ## Recommended Next Path
 
 Ordem recomendada para continuar:
 
-1. Rodar a aplicacao pelo IntelliJ e validar Swagger manualmente em `/swagger-ui/index.html`.
-2. Testar manualmente login, refresh token e rota `POST /users` com roles `ADMIN` e `MANAGER`.
-3. Configurar variaveis sensiveis no Railway antes de subir producao.
-4. Avaliar testes de repositories somente se alguma regra passar a depender de comportamento real do banco.
+1. Abrir pull request da `dev` para `main`.
+2. Depois do merge, alterar o Railway para deployar a branch `main`.
+3. Avaliar testes de repositories somente se alguma regra passar a depender de comportamento real do banco.
 
 Organizacao sugerida:
 

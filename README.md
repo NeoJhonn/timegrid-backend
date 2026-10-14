@@ -377,6 +377,13 @@ Com a aplicação rodando, acesse:
 http://localhost:8080/swagger-ui/index.html
 ```
 
+No perfil `prod`, Swagger UI e OpenAPI ficam desabilitados:
+
+```properties
+springdoc.api-docs.enabled=false
+springdoc.swagger-ui.enabled=false
+```
+
 Para testar rotas protegidas pelo Swagger, use o botão de autorização e informe:
 
 ```text
@@ -523,13 +530,12 @@ Implementado:
 - Senhas criptografadas com BCrypt
 - Autorização por roles
 - CORS
-- Swagger/OpenAPI
+- Swagger/OpenAPI em desenvolvimento
 - Flyway
 - Testes automatizados
 
 Pendente ou futuro:
 
-- Configuração de produção
 - Testes de repositories, se alguma regra passar a depender de comportamento real do banco
 - Frontend em Angular
 
