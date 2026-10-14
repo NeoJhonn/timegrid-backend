@@ -8,7 +8,7 @@ repositories, services, regras de negocio, depois DTOs, mappers,
 controllers, tratamento global de excecoes, testes e, por ultimo,
 autenticacao/JWT.
 
-Atualizado em: 2026-09-23.
+Atualizado em: 2026-10-13.
 
 ## Current Workspace
 
@@ -74,7 +74,9 @@ Ainda nao existem:
 
 `application.properties`:
 - `spring.application.name=timegrid-backend`
-- perfil ativo atual: `dev`
+- perfil ativo atual: `${SPRING_PROFILES_ACTIVE:prod}`
+- em producao usa `prod` por padrao
+- localmente, definir `SPRING_PROFILES_ACTIVE=dev`
 
 `application-dev.properties`:
 - PostgreSQL local
@@ -94,6 +96,19 @@ Ainda nao existem:
   no PostgreSQL local do perfil `dev`
 
 `application-prod.properties`:
+- `server.port=${PORT:8080}` para deploy no Railway
+- PostgreSQL configurado por variaveis de ambiente do Railway:
+  - `PGHOST`
+  - `PGPORT`
+  - `PGDATABASE`
+  - `PGUSER`
+  - `PGPASSWORD`
+- `spring.jpa.hibernate.ddl-auto=validate`
+- `spring.jpa.show-sql=false`
+- `spring.flyway.baseline-on-migrate=true`
+- `springdoc.api-docs.enabled=false`
+- `springdoc.swagger-ui.enabled=false`
+- `timegrid.jwt.secret=${JWT_SECRET}` sem fallback em producao
 - CORS padrao de producao aponta para `https://timegrid-frontend.vercel.app`
 - valor pode ser sobrescrito por `CORS_ALLOWED_ORIGINS`
 
@@ -113,7 +128,8 @@ Estado atual:
 - `/h2-console/**` liberado
 - `POST /auth/login` liberado
 - `POST /auth/refresh` liberado
-- Swagger/OpenAPI liberado em `/swagger-ui/**` e `/v3/api-docs/**`
+- Swagger/OpenAPI liberado em `/swagger-ui/**` e `/v3/api-docs/**` nos perfis locais
+- Swagger/OpenAPI desabilitado no perfil `prod`
 - `POST /users` restrito a usuarios com role `MANAGER`
 - `PATCH /users/{id}/password` restrito a usuarios com role `MANAGER`
 - `DELETE /users/{id}` restrito a usuarios com role `MANAGER`
@@ -188,24 +204,23 @@ Migrations atuais:
   - usa `CREATE TABLE IF NOT EXISTS` para permitir transicao do banco dev que
     ja tinha tabelas geradas previamente pelo Hibernate
 - `V2__seed_initial_data.sql`
-  - adiciona 3 usuarios ficticios
-  - adiciona 3 clientes ficticios
-  - adiciona 6 agendamentos ficticios
-  - usa IDs fixos para facilitar testes manuais de endpoints
-- `V3__encode_seed_user_passwords.sql`
-  - atualiza senhas seedadas em texto puro (`123456`) para hash BCrypt
-  - permite login manual com a senha original `123456`
+  - adiciona somente o usuario inicial `MANAGER`
+  - usuario inicial: `Jhonny Alves de Souza Azevedo`
+  - email inicial: `jhonny.azevedo@gmail.com`
+  - senha inicial: `12345678`, armazenada em BCrypt
 
 Estado atual:
 - Flyway ja aplicou as migrations no PostgreSQL local `timegridDB`
-- schema atual no dev: versao `3`
+- schema atual no dev local antigo: versao `3`
+- para banco novo de producao, o schema sobe ate a versao `2`
 - Hibernate no perfil `dev` esta em `validate`, entao ele apenas valida o schema
   criado pelo Flyway
 - o seed foi confirmado pelo usuario no DBeaver
 
 Observacoes:
-- O seed original usava senhas em texto puro, mas a `V3` converte esses valores
-  para BCrypt.
+- A `V3` foi removida antes do deploy de producao para deixar o seed limpo.
+- Bancos locais que ja aplicaram a `V3` podem precisar ser recriados ou
+  reparados no Flyway depois dessa alteracao.
 - Para producao, revisar credenciais, seed e estrategia de migrations antes do
   primeiro deploy real.
 
@@ -448,7 +463,7 @@ Arquivos:
 Validacoes:
 - `username`: `@NotBlank`
 - `email`: `@NotBlank` e `@Email`
-- `password`: `@NotBlank`
+- `password`: `@NotBlank` e minimo de 8 caracteres
 - `role`: `@NotNull`
 
 `UserResponse` contem:
@@ -472,8 +487,8 @@ Importante:
 - troca/reset de senha usam endpoints proprios.
 
 DTOs de senha:
-- `ChangePasswordRequest`: `currentPassword`, `newPassword`
-- `ResetPasswordRequest`: `newPassword`
+- `ChangePasswordRequest`: `currentPassword`, `newPassword` com minimo de 8 caracteres
+- `ResetPasswordRequest`: `newPassword` com minimo de 8 caracteres
 
 Mapper:
 `user.mapper.UserMapper`
@@ -1006,7 +1021,7 @@ Padrao adotado nos testes de controller:
 - token invalido retornando `Optional.empty()`
 
 Build verificado:
-- `mvn test` executado em 2026-10-12 com sucesso.
+- `mvn test` executado em 2026-10-13 com sucesso.
 - Resultado: `BUILD SUCCESS`, `Tests run: 86, Failures: 0, Errors: 0`.
 - Testes tambem foram rodados pelo usuario no IntelliJ com sucesso.
 
@@ -1044,12 +1059,13 @@ Implementado:
 - troca de senha com validacao da senha atual
 - reset administrativo de senha restrito a `MANAGER`
 - CORS configurado para o futuro frontend Angular
-- Swagger/OpenAPI configurado com esquema Bearer JWT
+- Swagger/OpenAPI configurado com esquema Bearer JWT nos perfis locais
+- Swagger/OpenAPI desabilitado no perfil `prod`
 - `UserDetailsService` baseado em `UserRepository`
 - perfis `dev` e `test`
 - PostgreSQL no desenvolvimento
 - H2 para teste
-- migrations Flyway com schema inicial, seed e conversao de senhas seedadas para BCrypt
+- migrations Flyway com schema inicial e seed do usuario `MANAGER` inicial
 - testes unitarios dos services principais com JUnit 5 e Mockito
 - testes dos controllers REST principais com MockMvc standalone
 - testes do `GlobalExceptionHandler` para respostas de erro padronizadas
@@ -1058,20 +1074,21 @@ Implementado:
 - constraint unica parcial para agendamento por usuario/data/horario inicial
 - `pom.xml` limpo, sem dependencias nao usadas como Data REST, GraphQL,
   WebClient, RestClient, JDBC e Spring AI
+- configuracao de producao para Railway/PostgreSQL via variaveis de ambiente
+- deploy em producao validado no Railway com PostgreSQL
+- login em producao testado no Insomnia
+- Swagger validado no navegador antes de ser desabilitado em producao
 
 Ainda pendente:
 - testes de repositories, se forem necessarios
-- configuracao de producao
-- validacao manual final do Swagger no navegador
 
 ## Recommended Next Path
 
 Ordem recomendada para continuar:
 
-1. Rodar a aplicacao pelo IntelliJ e validar Swagger manualmente em `/swagger-ui/index.html`.
-2. Testar manualmente login, refresh token e rota `POST /users` com roles `ADMIN` e `MANAGER`.
-3. Externalizar configuracoes sensiveis para ambiente antes de producao.
-4. Avaliar testes de repositories somente se alguma regra passar a depender de comportamento real do banco.
+1. Abrir pull request da `dev` para `main`.
+2. Depois do merge, alterar o Railway para deployar a branch `main`.
+3. Avaliar testes de repositories somente se alguma regra passar a depender de comportamento real do banco.
 
 Organizacao sugerida:
 

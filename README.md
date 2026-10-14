@@ -171,8 +171,8 @@ Exemplo de request:
 
 ```json
 {
-  "email": "john.manager@timegrid.test",
-  "password": "123456"
+  "email": "jhonny.azevedo@gmail.com",
+  "password": "12345678"
 }
 ```
 
@@ -357,14 +357,14 @@ Migrations atuais:
 
 - `V1__create_initial_schema.sql`
 - `V2__seed_initial_data.sql`
-- `V3__encode_seed_user_passwords.sql`
 
-A `V3` converte as senhas seedadas em texto puro para BCrypt.
+O seed inicial cria somente o usuario `MANAGER` inicial da aplicacao, com senha
+ja armazenada em BCrypt.
 
-O login manual continua usando a senha original:
+O login inicial usa a senha:
 
 ```text
-123456
+12345678
 ```
 
 ---
@@ -375,6 +375,13 @@ Com a aplicação rodando, acesse:
 
 ```text
 http://localhost:8080/swagger-ui/index.html
+```
+
+No perfil `prod`, Swagger UI e OpenAPI ficam desabilitados:
+
+```properties
+springdoc.api-docs.enabled=false
+springdoc.swagger-ui.enabled=false
 ```
 
 Para testar rotas protegidas pelo Swagger, use o botão de autorização e informe:
@@ -421,7 +428,13 @@ Observação: a origem CORS usa apenas protocolo, domínio e porta. Caminhos com
 Perfil ativo padrão:
 
 ```properties
-spring.profiles.active=dev
+spring.profiles.active=${SPRING_PROFILES_ACTIVE:prod}
+```
+
+O perfil padrao da aplicacao e `prod`. Para rodar localmente, defina:
+
+```properties
+SPRING_PROFILES_ACTIVE=dev
 ```
 
 Rodar os testes:
@@ -442,6 +455,32 @@ Variáveis de ambiente importantes:
 JWT_SECRET=defina-um-segredo-forte-em-producao
 JWT_EXPIRATION_MINUTES=60
 JWT_REFRESH_EXPIRATION_MINUTES=1440
+CORS_ALLOWED_ORIGINS=https://timegrid-frontend.vercel.app
+```
+
+### Railway
+
+No Railway, use o perfil de producao:
+
+```properties
+SPRING_PROFILES_ACTIVE=prod
+```
+
+O `application-prod.properties` espera as variaveis padrao do PostgreSQL do
+Railway:
+
+```properties
+PGHOST=${{Postgres.PGHOST}}
+PGPORT=${{Postgres.PGPORT}}
+PGDATABASE=${{Postgres.PGDATABASE}}
+PGUSER=${{Postgres.PGUSER}}
+PGPASSWORD=${{Postgres.PGPASSWORD}}
+```
+
+Tambem configure:
+
+```properties
+JWT_SECRET=defina-um-segredo-forte-em-producao
 CORS_ALLOWED_ORIGINS=https://timegrid-frontend.vercel.app
 ```
 
@@ -491,13 +530,12 @@ Implementado:
 - Senhas criptografadas com BCrypt
 - Autorização por roles
 - CORS
-- Swagger/OpenAPI
+- Swagger/OpenAPI em desenvolvimento
 - Flyway
 - Testes automatizados
 
 Pendente ou futuro:
 
-- Configuração de produção
 - Testes de repositories, se alguma regra passar a depender de comportamento real do banco
 - Frontend em Angular
 

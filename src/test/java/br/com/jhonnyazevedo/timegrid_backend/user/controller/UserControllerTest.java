@@ -81,7 +81,7 @@ class UserControllerTest {
                 {
                   "username": "john_manager",
                   "email": "john.manager@timegrid.test",
-                  "password": "123456",
+                  "password": "12345678",
                   "role": "MANAGER"
                 }
                 """;

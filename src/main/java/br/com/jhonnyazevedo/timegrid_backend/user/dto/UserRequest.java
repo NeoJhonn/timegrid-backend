@@ -4,6 +4,7 @@ import br.com.jhonnyazevedo.timegrid_backend.enums.UserRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public record UserRequest(
         @NotBlank(message = "Username é obrigatório")
@@ -14,6 +15,7 @@ public record UserRequest(
         String email,
 
         @NotBlank(message = "Senha é obrigatória")
+        @Size(min = 8, message = "Senha deve ter no mínimo 8 caracteres")
         String password,
 
         @NotNull(message = "Role é obrigatória")
