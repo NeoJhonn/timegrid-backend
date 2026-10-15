@@ -8,7 +8,28 @@ repositories, services, regras de negocio, depois DTOs, mappers,
 controllers, tratamento global de excecoes, testes e, por ultimo,
 autenticacao/JWT.
 
-Atualizado em: 2026-10-13.
+Atualizado em: 2026-10-15.
+
+## Session Update: 2026-10-15
+
+- Usuario autorizou alteracoes no projeto; nao fazer commit nem push automaticamente.
+- Sempre registrar as alteracoes neste arquivo e sugerir commit em ingles no padrao Conventional Commits.
+- Inicializacao estatica de `TimegridBackendApplication` define o fuso da JVM como
+  `America/Sao_Paulo`, independentemente do fuso do servidor Railway.
+- `config.TimeZoneConfig` configura explicitamente o Clock do Hibernate para
+  `America/Sao_Paulo` via HibernatePropertiesCustomizer e CLOCK_SETTING_NAME.
+  Apenas mudar o fuso da JVM nao foi suficiente no teste de persistencia.
+- A configuracao cobre `@CreationTimestamp` de User, Client e Appointment,
+  `LocalDate.now()` nas regras de agendamento e timestamps das respostas de erro.
+- Mantidos `LocalDateTime`, formato dos DTOs e colunas TIMESTAMP existentes.
+  Datas antigas nao sao convertidas automaticamente; nao foi necessaria migration.
+- Teste de contexto passa a executar o main com perfil test; teste de persistencia
+  verifica createdAt das tres entidades depois de salvar e recarregar no H2.
+- Validacao: `mvn test -Duser.timezone=UTC -Dspring.profiles.active=test -Dspring.flyway.enabled=false`:
+  BUILD SUCCESS, 87 testes, zero falhas e zero erros. Flyway desabilitado somente
+  na verificacao com H2, pois o seed PostgreSQL usa ON CONFLICT. A execucao sem
+  essas opcoes falha por falta de variaveis de producao e incompatibilidade do seed com H2.
+- Commit sugerido: `fix: use Sao Paulo timezone for application timestamps`.
 
 ## Current Workspace
 
@@ -1142,7 +1163,8 @@ Sugestao educativa:
 
 ## Development Rules For Future Agents
 
-1. Manter acesso somente leitura, salvo se o usuario pedir explicitamente para editar arquivos.
+1. Usuario autorizou edicoes em 2026-10-15. Nao fazer commit nem push automaticamente;
+   registrar alteracoes no AGENTS.md e sugerir nome de commit em ingles (Conventional Commits).
 2. Antes de propor mudancas, ler o codigo atual e respeitar a estrutura existente.
 3. JWT ja existe e faz parte do fluxo atual da API; antes de alterar
    autenticacao, ler `auth`, `config.SecurityConfig` e os testes relacionados.
